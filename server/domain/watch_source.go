@@ -21,4 +21,16 @@ type (
 	CinemaScreenAddRequest struct {
 		Name string `json:"name" binding:"required"`
 	}
+
+	// A single watch that used a source (for the source detail page).
+	WatchSourceWatch struct {
+		ActivityID uint   `json:"activityId"`
+		WatchedID  uint   `json:"watchedId"`
+		Date       string `json:"date"`
+		ScreenName string `json:"screenName"`
+		Title      string `json:"title"`
+		Type       string `json:"type"`
+		TmdbID     int    `json:"tmdbId"`
+		PosterPath string `json:"poster_path"`
+	}
 )

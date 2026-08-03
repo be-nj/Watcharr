@@ -192,6 +192,18 @@ export interface GeocodeResult {
 	lon: string;
 }
 
+// A single watch that used a source (for the source detail page).
+export interface WatchSourceWatch {
+	activityId: number;
+	watchedId: number;
+	date: string;
+	screenName: string;
+	title: string;
+	type: string;
+	tmdbId: number;
+	poster_path: string;
+}
+
 export interface WatchedSeason {
 	id: number;
 	watchedID: number;

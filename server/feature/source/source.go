@@ -191,6 +191,39 @@ func (s *Service) DeleteSource(userId uint, sourceId uint) error {
 	return nil
 }
 
+// Get all watches (activities) that used a source, newest first, with
+// their content, for the source detail page.
+func (s *Service) GetSourceWatches(userId uint, sourceId uint) ([]domain.WatchSourceWatch, error) {
+	// Verify the user owns the source.
+	if _, err := s.GetSource(userId, sourceId); err != nil {
+		return nil, err
+	}
+	watches := []domain.WatchSourceWatch{}
+	res := s.db.
+		Table("activity_details ad").
+		Select(`a.id AS activity_id,
+			a.watched_id,
+			COALESCE(a.custom_date, a.created_at) AS date,
+			COALESCE(cs.name, '') AS screen_name,
+			c.title,
+			c.type,
+			c.tmdb_id,
+			c.poster_path`).
+		Joins("JOIN activities a ON a.id = ad.activity_id AND a.deleted_at IS NULL").
+		Joins("LEFT JOIN cinema_screens cs ON cs.id = ad.cinema_screen_id").
+		Joins("JOIN watcheds w ON w.id = a.watched_id AND w.deleted_at IS NULL").
+		Joins("JOIN contents c ON c.id = w.content_id").
+		Where("ad.watch_source_id = ? AND a.user_id = ?", sourceId, userId).
+		Order("date DESC").
+		Scan(&watches)
+	if res.Error != nil {
+		slog.Error("getSourceWatches: Failed getting watches from database",
+			"source_id", sourceId, "error", res.Error.Error())
+		return nil, errors.New("failed getting source watches")
+	}
+	return watches, nil
+}
+
 func (s *Service) ensureCinemaDetails(sourceId uint) error {
 	details := new(entity.CinemaDetails)
 	res := s.db.Where("watch_source_id = ?", sourceId).Find(&details)

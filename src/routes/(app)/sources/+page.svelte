@@ -1,16 +1,14 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import Error from "@/lib/Error.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
 	import CreateSourceModal from "@/lib/source/CreateSourceModal.svelte";
-	import CinemaDetailsModal from "@/lib/source/CinemaDetailsModal.svelte";
 	import { req } from "@/lib/util/api";
-	import { notify } from "@/lib/util/notify";
 	import type { WatchSource } from "@/types";
+	import { goto } from "$app/navigation";
 
 	let sources = $state<WatchSource[]>([]);
 	let createModalOpen = $state(false);
-	let sourceToEdit: WatchSource | undefined = $state(undefined);
-	let cinemaToEdit: WatchSource | undefined = $state(undefined);
 	let getSourcesPromise = $state(getSources());
 
 	const typeNames: { [key: string]: string } = {
@@ -36,23 +34,11 @@
 		sources = await req.get<WatchSource[]>("/source");
 	}
 
-	async function deleteSource(source: WatchSource) {
-		const nid = notify({ text: "Deleting Source", type: "loading" });
-		try {
-			await req.delete(`/source/${source.id}`);
-			sources = sources.filter((s) => s.id !== source.id);
-			notify({ id: nid, text: "Source Deleted!", type: "success" });
-		} catch (err) {
-			console.error("deleteSource: Failed!", err);
-			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
-		}
-	}
-
-	function onModalClose(updated?: WatchSource) {
+	function onModalClose(created?: WatchSource) {
 		createModalOpen = false;
-		sourceToEdit = undefined;
-		if (updated) {
-			getSourcesPromise = getSources();
+		if (created) {
+			// Neu angelegte Quelle direkt auf ihrer Seite oeffnen.
+			goto(resolve(`/sources/${created.id}`));
 		}
 	}
 </script>
@@ -81,32 +67,17 @@
 				<h3>{group.name}</h3>
 				<div class="sources">
 					{#each group.sources as source (source.id)}
-						<div class="source">
-							<span class="name">
-								{source.name}
+						<a href={resolve(`/sources/${source.id}`)} class="source">
+							<span class="name">{source.name}</span>
+							<span class="meta">
 								{#if source.type === "CINEMA" && source.cinema?.city}
-									<span class="city">{source.cinema.city}</span>
+									<span>{source.cinema.city}</span>
 								{/if}
 								{#if source.type === "CINEMA" && source.cinema?.ratingOverall}
-									<span class="rating">
-										{source.cinema.ratingOverall}/10
-									</span>
+									<span>{source.cinema.ratingOverall}/10</span>
 								{/if}
 							</span>
-							<span class="actions">
-								{#if source.type === "CINEMA"}
-									<button class="plain" onclick={() => (cinemaToEdit = source)}>
-										Details
-									</button>
-								{/if}
-								<button class="plain" onclick={() => (sourceToEdit = source)}>
-									Edit
-								</button>
-								<button class="plain" onclick={() => deleteSource(source)}>
-									Delete
-								</button>
-							</span>
-						</div>
+						</a>
 					{/each}
 				</div>
 			{/each}
@@ -116,15 +87,8 @@
 	</div>
 </div>
 
-{#if createModalOpen || sourceToEdit}
-	<CreateSourceModal onClose={onModalClose} existingSource={sourceToEdit} />
-{/if}
-
-{#if cinemaToEdit}
-	<CinemaDetailsModal
-		source={cinemaToEdit}
-		onClose={() => (cinemaToEdit = undefined)}
-	/>
+{#if createModalOpen}
+	<CreateSourceModal onClose={onModalClose} />
 {/if}
 
 <style lang="scss">
@@ -178,27 +142,13 @@
 			padding: 8px 12px;
 			border-radius: 8px;
 			background-color: $accent-color;
+			text-decoration: none;
 
-			.name {
+			.meta {
 				display: flex;
-				align-items: center;
 				gap: 10px;
-
-				.city,
-				.rating {
-					font-size: 13px;
-					opacity: 0.7;
-				}
-			}
-
-			.actions {
-				display: flex;
-				gap: 6px;
-
-				button {
-					font-size: 13px;
-					width: max-content;
-				}
+				font-size: 13px;
+				opacity: 0.7;
 			}
 		}
 	}

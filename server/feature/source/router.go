@@ -28,12 +28,52 @@ func (r *Router) AddRoutes() {
 
 	source.GET("", r.GetSources)
 	source.POST("", r.CreateSource)
+	source.GET(":id", r.GetSource)
 	source.PUT(":id", r.UpdateSource)
 	source.DELETE(":id", r.DeleteSource)
 	source.PUT(":id/cinema", r.UpdateCinemaDetails)
 	source.POST(":id/cinema/screen", r.CreateScreen)
 	source.DELETE(":id/cinema/screen/:screenId", r.DeleteScreen)
-	source.GET("geocode", r.Geocode)
+	source.GET(":id/watches", r.GetSourceWatches)
+
+	// Own group: gin cannot mix a static `geocode` route with the
+	// `:id` param routes above.
+	geocode := r.br.Router.Group("/geocode").Use(authmiddleware.AuthRequired(nil, r.br.Cfg))
+	geocode.GET("", r.Geocode)
+}
+
+// Get one of our watch sources.
+func (r *Router) GetSource(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		slog.Error("getSource route failed to convert id param to int", "error", err)
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid id"})
+		return
+	}
+	source, err := r.service.GetSource(userId, uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, source)
+}
+
+// Get all watches that used one of our sources.
+func (r *Router) GetSourceWatches(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		slog.Error("getSourceWatches route failed to convert id param to int", "error", err)
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid id"})
+		return
+	}
+	watches, err := r.service.GetSourceWatches(userId, uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, watches)
 }
 
 // Get all of our watch sources.
