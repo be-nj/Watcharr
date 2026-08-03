@@ -7,6 +7,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sync"
+	"time"
+)
+
+// Nominatims usage policy allows at most 1 request/second and requires
+// an identifying user agent - throttle all geocode calls process wide.
+var (
+	geocodeMu       sync.Mutex
+	geocodeLastCall time.Time
 )
 
 type GeocodeResult struct {
@@ -46,6 +55,13 @@ func (s *Service) Geocode(query string) ([]GeocodeResult, error) {
 	params.Add("extratags", "1")
 	base.RawQuery = params.Encode()
 
+	geocodeMu.Lock()
+	if wait := 1100*time.Millisecond - time.Since(geocodeLastCall); wait > 0 {
+		time.Sleep(wait)
+	}
+	geocodeLastCall = time.Now()
+	geocodeMu.Unlock()
+
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", base.String(), nil)
 	if err != nil {
@@ -53,7 +69,7 @@ func (s *Service) Geocode(query string) ([]GeocodeResult, error) {
 		return nil, errors.New("request failed")
 	}
 	// Nominatim usage policy requires an identifying user agent.
-	req.Header.Add("User-Agent", "Watcharr")
+	req.Header.Add("User-Agent", "watcharr-fork/1.0 (https://github.com/be-nj/Watcharr)")
 	res, err := client.Do(req)
 	if err != nil {
 		slog.Error("geocode: Making request to nominatim failed", "error", err)
@@ -64,6 +80,10 @@ func (s *Service) Geocode(query string) ([]GeocodeResult, error) {
 	if err != nil {
 		slog.Error("geocode: Error reading nominatim response", "error", err.Error())
 		return nil, err
+	}
+	if res.StatusCode == 429 {
+		slog.Error("geocode: Nominatim rate limited us", "status_code", res.StatusCode)
+		return nil, errors.New("openstreetmap search is rate limited right now, try again in a minute")
 	}
 	if res.StatusCode != 200 {
 		slog.Error("geocode: Nominatim non 200 status code", "status_code", res.StatusCode, "error", string(body))
