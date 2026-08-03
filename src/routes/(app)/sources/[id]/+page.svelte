@@ -3,6 +3,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import DropDown from "@/lib/DropDown.svelte";
+	import Rating from "@/lib/rating/Rating.svelte";
 	import Error from "@/lib/Error.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
 	import Setting from "@/lib/settings/Setting.svelte";
@@ -70,6 +71,39 @@
 		watches = await req.get<WatchSourceWatch[]>(
 			`/source/${Number(page.params.id)}/watches`,
 		);
+	}
+
+	// Ratings save immediately on interaction (like rating a title),
+	// they are not part of the master data form below.
+	async function saveRating(
+		dimension:
+			| "ratingOverall"
+			| "ratingSnacks"
+			| "ratingTech"
+			| "ratingComfort",
+		value: number | undefined,
+	) {
+		if (dimension === "ratingOverall") ratingOverall = value;
+		if (dimension === "ratingSnacks") ratingSnacks = value;
+		if (dimension === "ratingTech") ratingTech = value;
+		if (dimension === "ratingComfort") ratingComfort = value;
+		try {
+			await req.put(`/source/${sourceId}/cinema`, {
+				city,
+				address,
+				lat,
+				lon,
+				note,
+				ratingOverall,
+				ratingSnacks,
+				ratingTech,
+				ratingComfort,
+			} as CinemaDetailsUpdateRequest);
+			notify({ text: "Rating Saved!", type: "success", time: 1 });
+		} catch (err) {
+			console.error("saveRating: Failed!", err);
+			notify({ text: "Failed!", type: "error", time: 2 });
+		}
 	}
 
 	async function save() {
@@ -227,53 +261,37 @@
 					</Setting>
 					<Setting
 						title="Ratings"
-						desc="All out of 10 and all optional - rate only what you care about."
+						desc="Saved as you rate - all optional, rate only what you care about."
 					>
 						<div class="ratings">
-							<label>
-								Overall
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="0.5"
-									placeholder="-"
-									bind:value={ratingOverall}
+							<div class="rating-row">
+								<span>Overall</span>
+								<Rating
+									rating={ratingOverall}
+									onChange={(r) => saveRating("ratingOverall", r)}
 								/>
-							</label>
-							<label>
-								Popcorn & Snacks
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="0.5"
-									placeholder="-"
-									bind:value={ratingSnacks}
+							</div>
+							<div class="rating-row">
+								<span>Popcorn & Snacks</span>
+								<Rating
+									rating={ratingSnacks}
+									onChange={(r) => saveRating("ratingSnacks", r)}
 								/>
-							</label>
-							<label>
-								Picture & Sound
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="0.5"
-									placeholder="-"
-									bind:value={ratingTech}
+							</div>
+							<div class="rating-row">
+								<span>Picture & Sound</span>
+								<Rating
+									rating={ratingTech}
+									onChange={(r) => saveRating("ratingTech", r)}
 								/>
-							</label>
-							<label>
-								Comfort
-								<input
-									type="number"
-									min="1"
-									max="10"
-									step="0.5"
-									placeholder="-"
-									bind:value={ratingComfort}
+							</div>
+							<div class="rating-row">
+								<span>Comfort</span>
+								<Rating
+									rating={ratingComfort}
+									onChange={(r) => saveRating("ratingComfort", r)}
 								/>
-							</label>
+							</div>
 						</div>
 					</Setting>
 					<Setting title="Notes" desc="Anything to remember about this cinema.">
@@ -390,23 +408,18 @@
 	}
 
 	.ratings {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 10px;
+		display: flex;
+		flex-flow: column;
+		gap: 12px;
 
-		label {
+		.rating-row {
 			display: flex;
 			flex-flow: column;
-			gap: 4px;
-			font-size: 14px;
+			gap: 2px;
 
-			input {
-				max-width: 100px;
+			span {
+				font-size: 14px;
 			}
-		}
-
-		@media screen and (max-width: 500px) {
-			grid-template-columns: 1fr;
 		}
 	}
 
