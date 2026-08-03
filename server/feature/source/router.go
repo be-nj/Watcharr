@@ -32,6 +32,7 @@ func (r *Router) AddRoutes() {
 	source.PUT(":id", r.UpdateSource)
 	source.DELETE(":id", r.DeleteSource)
 	source.PUT(":id/cinema", r.UpdateCinemaDetails)
+	source.POST(":id/cinema/refresh", r.RefreshCinemaOsm)
 	source.POST(":id/cinema/screen", r.CreateScreen)
 	source.DELETE(":id/cinema/screen/:screenId", r.DeleteScreen)
 	source.GET(":id/watches", r.GetSourceWatches)
@@ -171,6 +172,22 @@ func (r *Router) DeleteSource(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusOK)
+}
+
+// Refresh the cached OSM data of a cinema (explicit user action).
+func (r *Router) RefreshCinemaOsm(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		slog.Error("refreshCinemaOsm route failed to convert id param to int", "error", err)
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid id"})
+		return
+	}
+	details, err := r.service.RefreshCinemaOsm(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, details)
 }
 
 // Update cinema details of one of our cinema sources.

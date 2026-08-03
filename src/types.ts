@@ -154,6 +154,8 @@ export interface CinemaDetails {
 	osmType: string;
 	osmId: number;
 	wikidataId: string;
+	// Official website, enriched from wikidata on osm refresh.
+	website: string;
 	note: string;
 	screens?: CinemaScreen[];
 }

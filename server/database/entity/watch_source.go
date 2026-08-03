@@ -59,6 +59,8 @@ type CinemaDetails struct {
 	OsmType    string `json:"osmType"`
 	OsmID      int64  `json:"osmId"`
 	WikidataID string `json:"wikidataId"`
+	// Official website, enriched from wikidata (P856) on osm refresh.
+	Website string `json:"website"`
 	// Free text notes (no-gos like `has no popcorn!`), shared by the
 	// instance like the cinema itself.
 	Note string `json:"note"`

@@ -54,7 +54,21 @@ func (s *Service) Geocode(query string) ([]GeocodeResult, error) {
 	params.Add("addressdetails", "1")
 	params.Add("extratags", "1")
 	base.RawQuery = params.Encode()
+	body, err := nominatimGet(base)
+	if err != nil {
+		return nil, err
+	}
+	results := new([]GeocodeResult)
+	err = json.Unmarshal(body, results)
+	if err != nil {
+		return nil, err
+	}
+	return *results, nil
+}
 
+// Shared nominatim http call: throttled process wide, with the
+// identifying user agent their usage policy requires.
+func nominatimGet(base *url.URL) ([]byte, error) {
 	geocodeMu.Lock()
 	if wait := 1100*time.Millisecond - time.Since(geocodeLastCall); wait > 0 {
 		time.Sleep(wait)
@@ -89,10 +103,5 @@ func (s *Service) Geocode(query string) ([]GeocodeResult, error) {
 		slog.Error("geocode: Nominatim non 200 status code", "status_code", res.StatusCode, "error", string(body))
 		return nil, errors.New("geocoding failed")
 	}
-	results := new([]GeocodeResult)
-	err = json.Unmarshal(body, results)
-	if err != nil {
-		return nil, err
-	}
-	return *results, nil
+	return body, nil
 }

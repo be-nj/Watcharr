@@ -178,7 +178,7 @@
 			notify({
 				text: "Please add an overall rating for your visit!",
 				type: "error",
-				time: 3,
+				time: 3000,
 			});
 			return false;
 		}
@@ -207,7 +207,7 @@
 			return true;
 		} catch (err) {
 			console.error("ActivityEditor: Failed saving details!", err);
-			notify({ text: "Failed saving details!", type: "error", time: 2 });
+			notify({ text: "Failed saving details!", type: "error", time: 2500 });
 			return false;
 		}
 	}

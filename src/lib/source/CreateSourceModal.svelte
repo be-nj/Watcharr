@@ -58,11 +58,11 @@
 						: 1,
 			);
 			if (osmResults.length === 0) {
-				notify({ text: "No results found", type: "error", time: 2 });
+				notify({ text: "No results found", type: "error", time: 2500 });
 			}
 		} catch (err) {
 			console.error("searchOsm: Failed!", err);
-			notify({ text: "Search failed!", type: "error", time: 2 });
+			notify({ text: "Search failed!", type: "error", time: 2500 });
 		}
 		osmSearching = false;
 	}
@@ -116,7 +116,7 @@
 			onClose(resp);
 		} catch (err) {
 			console.error("addSource: Failed!", err);
-			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
+			notify({ id: nid, text: "Failed!", type: "error", time: 2500 });
 			error = "Failed!";
 		}
 		submitDisabled = false;

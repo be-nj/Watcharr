@@ -10,6 +10,7 @@
 	import { req } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
 	import type {
+		CinemaDetails,
 		CinemaDetailsUpdateRequest,
 		CinemaScreen,
 		GeocodeResult,
@@ -73,7 +74,7 @@
 
 	async function save() {
 		if (!name) {
-			notify({ text: "Source must have a name!", type: "error", time: 2 });
+			notify({ text: "Source must have a name!", type: "error", time: 2500 });
 			return;
 		}
 		saving = true;
@@ -95,7 +96,7 @@
 			notify({ id: nid, text: "Source Saved!", type: "success" });
 		} catch (err) {
 			console.error("save source: Failed!", err);
-			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
+			notify({ id: nid, text: "Failed!", type: "error", time: 2500 });
 		}
 		saving = false;
 	}
@@ -108,11 +109,11 @@
 				`/geocode?q=${encodeURIComponent(query)}`,
 			);
 			if (geocodeResults.length === 0) {
-				notify({ text: "No results found", type: "error", time: 2 });
+				notify({ text: "No results found", type: "error", time: 2500 });
 			}
 		} catch (err) {
 			console.error("geocode: Failed!", err);
-			notify({ text: "Geocoding failed!", type: "error", time: 2 });
+			notify({ text: "Geocoding failed!", type: "error", time: 2500 });
 		}
 		geocodeRunning = false;
 	}
@@ -121,6 +122,34 @@
 		lat = Number(r.lat);
 		lon = Number(r.lon);
 		geocodeResults = [];
+	}
+
+	let osmRefreshRunning = $state(false);
+
+	// Explicitly refresh the cached OSM data (never done automatically,
+	// see ADR 0003). Also enriches the website from wikidata.
+	async function refreshOsm() {
+		if (!source?.cinema?.osmId) {
+			return;
+		}
+		osmRefreshRunning = true;
+		const nid = notify({ text: "Refreshing from OSM", type: "loading" });
+		try {
+			const fresh = await req.post<CinemaDetails>(
+				`/source/${sourceId}/cinema/refresh`,
+				{},
+			);
+			source.cinema = fresh;
+			city = fresh.city ?? "";
+			address = fresh.address ?? "";
+			lat = fresh.lat;
+			lon = fresh.lon;
+			notify({ id: nid, text: "Refreshed!", type: "success" });
+		} catch (err) {
+			console.error("refreshOsm: Failed!", err);
+			notify({ id: nid, text: "Refresh failed!", type: "error" });
+		}
+		osmRefreshRunning = false;
 	}
 
 	async function addScreen() {
@@ -134,7 +163,7 @@
 			newScreenName = "";
 		} catch (err) {
 			console.error("addScreen: Failed!", err);
-			notify({ text: "Failed adding screen!", type: "error", time: 2 });
+			notify({ text: "Failed adding screen!", type: "error", time: 2500 });
 		}
 	}
 
@@ -144,7 +173,7 @@
 			screens = screens.filter((s) => s.id !== screen.id);
 		} catch (err) {
 			console.error("deleteScreen: Failed!", err);
-			notify({ text: "Failed deleting screen!", type: "error", time: 2 });
+			notify({ text: "Failed deleting screen!", type: "error", time: 2500 });
 		}
 	}
 
@@ -156,7 +185,7 @@
 			goto(resolve("/sources"));
 		} catch (err) {
 			console.error("deleteSource: Failed!", err);
-			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
+			notify({ id: nid, text: "Failed!", type: "error", time: 2500 });
 		}
 	}
 
@@ -223,15 +252,40 @@
 					{#if source?.cinema?.osmId}
 						<Setting
 							title="OpenStreetMap"
-							desc="This cinema is anchored on OSM; local data is a cached copy."
+							desc="This cinema is anchored on OSM; local data is a cached copy.
+								Refresh updates city, address, coordinates and the website
+								(via Wikidata) - never automatically."
 						>
-							<a
-								href={`https://www.openstreetmap.org/${source.cinema.osmType}/${source.cinema.osmId}`}
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								{source.cinema.osmType}/{source.cinema.osmId} ↗
-							</a>
+							<div class="osm-row">
+								<a
+									href={`https://www.openstreetmap.org/${source.cinema.osmType}/${source.cinema.osmId}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{source.cinema.osmType}/{source.cinema.osmId} ↗
+								</a>
+								{#if source.cinema.wikidataId}
+									<a
+										href={`https://www.wikidata.org/wiki/${source.cinema.wikidataId}`}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										{source.cinema.wikidataId} ↗
+									</a>
+								{/if}
+								{#if source.cinema.website}
+									<a
+										href={source.cinema.website}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										Website ↗
+									</a>
+								{/if}
+								<button onclick={() => refreshOsm()} disabled={osmRefreshRunning}>
+									Refresh From OSM
+								</button>
+							</div>
 						</Setting>
 					{/if}
 					<Setting
@@ -351,6 +405,17 @@
 
 	h3 {
 		margin: 25px 0 8px 0;
+	}
+
+	.osm-row {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 12px;
+
+		button {
+			width: max-content;
+		}
 	}
 
 	.coords {
