@@ -1,7 +1,15 @@
 <script lang="ts">
-	import { updateActivity, removeActivity } from "@/lib/util/api";
+	import { updateActivity, removeActivity, req } from "@/lib/util/api";
 	import Modal from "./Modal.svelte";
-	import type { Activity } from "@/types";
+	import DropDown from "./DropDown.svelte";
+	import type {
+		Activity,
+		ActivityDetails,
+		ActivityDetailsUpdateRequest,
+		Tag,
+		WatchSource,
+	} from "@/types";
+	import { store } from "@/store.svelte";
 	import { notify } from "./util/notify";
 
 	interface Props {
@@ -88,6 +96,86 @@
 		onRemoved(activity);
 		onClose();
 	}
+
+	// Per watch details (source, language, tags, note).
+	let showDetails = $state(false);
+	let sources = $state<WatchSource[]>([]);
+	let selectedSourceId: string | number | undefined = $state(
+		activity.details?.watchSourceId,
+	);
+	let selectedScreenId: string | number | undefined = $state(
+		activity.details?.cinemaScreenId,
+	);
+	let audioLang = $state(activity.details?.audioLang ?? "");
+	let subtitleLang = $state(activity.details?.subtitleLang ?? "");
+	let detailsNote = $state(activity.details?.note ?? "");
+	let selectedTagIds = $state<number[]>(
+		activity.details?.tags?.map((t) => t.id) ?? [],
+	);
+	let detailsSaving = $state(false);
+
+	let selectedSource = $derived(
+		sources.find((s) => s.id === Number(selectedSourceId)),
+	);
+	let screenOptions = $derived(
+		selectedSource?.cinema?.screens?.map((s) => ({
+			id: s.id,
+			value: s.name,
+		})) ?? [],
+	);
+	let sourceOptions = $derived(
+		sources.map((s) => ({ id: s.id, value: s.name })),
+	);
+	let allTags = $derived(store.tags);
+
+	async function toggleDetails() {
+		showDetails = !showDetails;
+		if (showDetails && sources.length === 0) {
+			try {
+				sources = await req.get<WatchSource[]>("/source");
+			} catch (err) {
+				console.error("ActivityEditor: Failed getting sources!", err);
+			}
+		}
+	}
+
+	function toggleTag(tag: Tag) {
+		if (selectedTagIds.includes(tag.id)) {
+			selectedTagIds = selectedTagIds.filter((id) => id !== tag.id);
+		} else {
+			selectedTagIds = [...selectedTagIds, tag.id];
+		}
+	}
+
+	async function saveDetails() {
+		detailsSaving = true;
+		const nid = notify({ text: "Saving Details", type: "loading" });
+		try {
+			const resp = await req.put<ActivityDetails>(
+				`/activity/${activity.id}/details`,
+				{
+					watchSourceId: selectedSourceId
+						? Number(selectedSourceId)
+						: undefined,
+					cinemaScreenId:
+						selectedSourceId && selectedScreenId
+							? Number(selectedScreenId)
+							: undefined,
+					audioLang,
+					subtitleLang,
+					note: detailsNote,
+					tagIds: selectedTagIds,
+				} as ActivityDetailsUpdateRequest,
+			);
+			activity.details = resp;
+			notify({ id: nid, text: "Details Saved!", type: "success" });
+			onUpdated(activity.id, activity);
+		} catch (err) {
+			console.error("ActivityEditor: Failed saving details!", err);
+			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
+		}
+		detailsSaving = false;
+	}
 </script>
 
 <Modal title="Edit Activity" desc={activityMessage} maxWidth="400px" {onClose}>
@@ -108,6 +196,71 @@
 			onchange={validateNewDate}
 		/>
 
+		<button class="plain toggle-details" onclick={toggleDetails}>
+			{showDetails ? "Hide" : "Show"} watch details
+		</button>
+		{#if showDetails}
+			<h3>Watched Via</h3>
+			<DropDown
+				options={sourceOptions}
+				isDropDownItem={true}
+				bind:active={selectedSourceId}
+				placeholder="Source"
+			/>
+			{#if selectedSource?.cinema && screenOptions.length > 0}
+				<h3>Screen</h3>
+				<DropDown
+					options={screenOptions}
+					isDropDownItem={true}
+					bind:active={selectedScreenId}
+					placeholder="Screen"
+				/>
+			{/if}
+			<h3>Language</h3>
+			<div class="langs">
+				<input
+					type="text"
+					placeholder="Audio (eg de, en)"
+					maxlength="5"
+					bind:value={audioLang}
+				/>
+				<input
+					type="text"
+					placeholder="Subtitles (none, de, ..)"
+					maxlength="5"
+					bind:value={subtitleLang}
+				/>
+			</div>
+			{#if allTags?.length > 0}
+				<h3>Tags</h3>
+				<div class="tags">
+					{#each allTags as tag (tag.id)}
+						<button
+							class="plain tag"
+							class:selected={selectedTagIds.includes(tag.id)}
+							style="color: {tag.color}; background-color: {tag.bgColor};"
+							onclick={() => toggleTag(tag)}
+						>
+							{tag.name}
+						</button>
+					{/each}
+				</div>
+			{/if}
+			<h3>Note</h3>
+			<textarea
+				placeholder="Anything to remember about this watch"
+				rows="2"
+				bind:value={detailsNote}
+			></textarea>
+			<button
+				class="save-details"
+				onclick={saveDetails}
+				disabled={detailsSaving}
+			>
+				Save Details
+			</button>
+		{/if}
+
 		<div class="button-row">
 			<button class="danger" onclick={remove}>Delete</button>
 			<div>
@@ -126,6 +279,43 @@
 		flex-flow: column;
 		gap: 10px;
 		height: 100%;
+
+		.toggle-details {
+			width: max-content;
+			font-size: 13px;
+		}
+
+		.langs {
+			display: flex;
+			gap: 8px;
+
+			input {
+				min-width: 0;
+			}
+		}
+
+		.tags {
+			display: flex;
+			flex-flow: wrap;
+			gap: 6px;
+
+			.tag {
+				width: max-content;
+				padding: 2px 10px;
+				border-radius: 10px;
+				font-size: 13px;
+				opacity: 0.5;
+
+				&.selected {
+					opacity: 1;
+				}
+			}
+		}
+
+		.save-details {
+			width: max-content;
+			margin-left: auto;
+		}
 
 		h3 {
 			font-size: 16px;

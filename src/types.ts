@@ -112,6 +112,84 @@ export interface Activity extends dbModel {
 	data: string;
 	customDate: string;
 	countAsPlay: boolean;
+	details?: ActivityDetails;
+}
+
+export type WatchSourceType =
+	| "CINEMA"
+	| "STREAMING"
+	| "TV"
+	| "SELFHOSTED"
+	| "DISC"
+	| "OTHER";
+
+export interface WatchSource extends dbModel {
+	name: string;
+	type: WatchSourceType;
+	cinema?: CinemaDetails;
+}
+
+export interface WatchSourceAddRequest {
+	name: string;
+	type: WatchSourceType;
+}
+
+export interface CinemaDetails {
+	id: number;
+	city: string;
+	address: string;
+	lat?: number;
+	lon?: number;
+	note: string;
+	ratingOverall?: number;
+	ratingSnacks?: number;
+	ratingTech?: number;
+	ratingComfort?: number;
+	screens?: CinemaScreen[];
+}
+
+export interface CinemaDetailsUpdateRequest {
+	city: string;
+	address: string;
+	lat?: number;
+	lon?: number;
+	note: string;
+	ratingOverall?: number;
+	ratingSnacks?: number;
+	ratingTech?: number;
+	ratingComfort?: number;
+}
+
+export interface CinemaScreen {
+	id: number;
+	name: string;
+}
+
+export interface ActivityDetails {
+	id: number;
+	watchSourceId?: number;
+	watchSource?: WatchSource;
+	cinemaScreenId?: number;
+	cinemaScreen?: CinemaScreen;
+	audioLang: string;
+	subtitleLang: string;
+	note: string;
+	tags?: Tag[];
+}
+
+export interface ActivityDetailsUpdateRequest {
+	watchSourceId?: number;
+	cinemaScreenId?: number;
+	audioLang: string;
+	subtitleLang: string;
+	note: string;
+	tagIds: number[];
+}
+
+export interface GeocodeResult {
+	display_name: string;
+	lat: string;
+	lon: string;
 }
 
 export interface WatchedSeason {
