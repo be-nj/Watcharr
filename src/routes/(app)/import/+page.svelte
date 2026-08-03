@@ -319,16 +319,19 @@
 				? papa.parse<LetterboxdWatchedRow>(watched.trim(), { header: true })
 				: undefined;
 			const toImport: ImportedList[] = [];
-			const byUri = new Map<string, ImportedList>();
+			// NOTE: In diary.csv the Letterboxd URI is unique per diary ENTRY
+			// (not per movie), so rows must be grouped by name+year.
+			const movieKey = (name: string, year: string) => `${name}|${year}`;
+			const byKey = new Map<string, ImportedList>();
 			// All diary rows (one row = one watch with date/tags/rating).
 			if (diaryJson) {
 				for (let i = 0; i < diaryJson.data.length; i++) {
 					const d = diaryJson.data[i];
-					const uri = d["Letterboxd URI"];
-					if (!d.Name || !uri) {
+					if (!d.Name) {
 						continue;
 					}
-					let t = byUri.get(uri);
+					const key = movieKey(d.Name, d.Year);
+					let t = byKey.get(key);
 					if (!t) {
 						t = {
 							name: d.Name,
@@ -339,7 +342,7 @@
 						if (d.Year) {
 							t.year = Number(d.Year);
 						}
-						byUri.set(uri, t);
+						byKey.set(key, t);
 						toImport.push(t);
 					}
 					if (d["Watched Date"]) {
@@ -361,11 +364,10 @@
 			if (ratingsJson) {
 				for (let i = 0; i < ratingsJson.data.length; i++) {
 					const rt = ratingsJson.data[i];
-					const uri = rt["Letterboxd URI"];
-					if (!uri || !rt.Rating) {
+					if (!rt.Name || !rt.Rating) {
 						continue;
 					}
-					const t = byUri.get(uri);
+					const t = byKey.get(movieKey(rt.Name, rt.Year));
 					if (t) {
 						t.rating = Number(rt.Rating) * 2;
 					}
@@ -375,12 +377,15 @@
 			if (watchedJson) {
 				for (let i = 0; i < watchedJson.data.length; i++) {
 					const w = watchedJson.data[i];
-					const uri = w["Letterboxd URI"];
-					if (!w.Name || !uri || byUri.has(uri)) {
+					if (!w.Name) {
+						continue;
+					}
+					const key = movieKey(w.Name, w.Year);
+					if (byKey.has(key)) {
 						continue;
 					}
 					const ratingsEntry = ratingsJson?.data.find(
-						(rt) => rt["Letterboxd URI"] === uri,
+						(rt) => movieKey(rt.Name, rt.Year) === key,
 					);
 					const t: ImportedList = {
 						name: w.Name,
@@ -393,7 +398,7 @@
 					if (ratingsEntry?.Rating) {
 						t.rating = Number(ratingsEntry.Rating) * 2;
 					}
-					byUri.set(uri, t);
+					byKey.set(key, t);
 					toImport.push(t);
 				}
 			}
