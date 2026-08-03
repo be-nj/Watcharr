@@ -26,6 +26,10 @@ func (s *Service) GetActivity(
 	activity := new([]entity.Activity)
 	res := s.db.Model(&entity.Activity{}).
 		Where("user_id = ? AND watched_id = ?", userId, watchedId).
+		Preload("Details").
+		Preload("Details.WatchSource").
+		Preload("Details.CinemaScreen").
+		Preload("Details.Tags").
 		Find(&activity)
 	if res.Error != nil {
 		slog.Error("Failed getting activity from database",

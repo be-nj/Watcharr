@@ -68,4 +68,7 @@ type Activity struct {
 	// Indexed (check migrations) to make search faster, since we frequently
 	// do it over the whole table for watched sorting at the moment.
 	CountAsPlay bool `json:"countAsPlay"`
+	// Extra metadata the user attached to this watch (watch source,
+	// language, tags, note). Only set for activities the user annotated.
+	Details *ActivityDetails `json:"details,omitempty" gorm:"foreignKey:ActivityID"`
 }

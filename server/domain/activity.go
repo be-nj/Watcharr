@@ -19,6 +19,15 @@ type (
 		CustomDate time.Time `json:"customDate" binding:"required"`
 	}
 
+	ActivityDetailsUpdateRequest struct {
+		WatchSourceID  *uint  `json:"watchSourceId"`
+		CinemaScreenID *uint  `json:"cinemaScreenId"`
+		AudioLang      string `json:"audioLang"`
+		SubtitleLang   string `json:"subtitleLang"`
+		Note           string `json:"note"`
+		TagIds         []uint `json:"tagIds"`
+	}
+
 	ActivityAddProvider interface {
 		AddActivity(
 			userId uint,
