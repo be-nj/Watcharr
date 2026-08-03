@@ -2,6 +2,8 @@
 	import { updateActivity, removeActivity, req } from "@/lib/util/api";
 	import Modal from "./Modal.svelte";
 	import DropDown from "./DropDown.svelte";
+	import Checkbox from "./Checkbox.svelte";
+	import Rating from "./rating/Rating.svelte";
 	import type {
 		Activity,
 		ActivityDetails,
@@ -114,6 +116,15 @@
 	let audioLang = $state(activity.details?.audioLang ?? "");
 	let subtitleLang = $state(activity.details?.subtitleLang ?? "");
 	let detailsNote = $state(activity.details?.note ?? "");
+	let ratingOverall = $state<number | undefined>(
+		activity.details?.ratingOverall,
+	);
+	let ratingSnacks = $state<number | undefined>(activity.details?.ratingSnacks);
+	let ratingTech = $state<number | undefined>(activity.details?.ratingTech);
+	let ratingComfort = $state<number | undefined>(
+		activity.details?.ratingComfort,
+	);
+	let ratingShowName = $state(activity.details?.ratingShowName ?? false);
 
 	let selectedSource = $derived(
 		sources.find((s) => s.id === Number(selectedSourceId)),
@@ -145,6 +156,11 @@
 				audioLang = fresh.details.audioLang ?? "";
 				subtitleLang = fresh.details.subtitleLang ?? "";
 				detailsNote = fresh.details.note ?? "";
+				ratingOverall = fresh.details.ratingOverall;
+				ratingSnacks = fresh.details.ratingSnacks;
+				ratingTech = fresh.details.ratingTech;
+				ratingComfort = fresh.details.ratingComfort;
+				ratingShowName = fresh.details.ratingShowName ?? false;
 			}
 		} catch (err) {
 			console.error("ActivityEditor: Failed getting activity details!", err);
@@ -152,6 +168,20 @@
 	});
 
 	async function saveDetails(): Promise<boolean> {
+		// Overall is required as soon as any dimension is rated.
+		const anyRating =
+			ratingOverall !== undefined ||
+			ratingSnacks !== undefined ||
+			ratingTech !== undefined ||
+			ratingComfort !== undefined;
+		if (anyRating && ratingOverall === undefined) {
+			notify({
+				text: "Please add an overall rating for your visit!",
+				type: "error",
+				time: 3,
+			});
+			return false;
+		}
 		try {
 			const resp = await req.put<ActivityDetails>(
 				`/activity/${activity.id}/details`,
@@ -166,6 +196,11 @@
 					audioLang,
 					subtitleLang,
 					note: detailsNote,
+					ratingOverall,
+					ratingSnacks,
+					ratingTech,
+					ratingComfort,
+					ratingShowName,
 				} as ActivityDetailsUpdateRequest,
 			);
 			activity.details = resp;
@@ -205,9 +240,9 @@
 			/>
 			{#if selectedSource?.cinema}
 			<a class="cinema-link" href={resolve(`/sources/${selectedSource.id}`)}>
-				View & rate {selectedSource.name}
-				{selectedSource.cinema.ratingOverall
-					? `(currently ${selectedSource.cinema.ratingOverall}/10)`
+				View {selectedSource.name}
+				{selectedSource.ratingAverage
+					? `(Ø ${selectedSource.ratingAverage.toFixed(1)}/10)`
 					: ""} →
 			</a>
 		{/if}
@@ -219,6 +254,40 @@
 					bind:active={selectedScreenId}
 					placeholder="Screen"
 				/>
+			{/if}
+			{#if selectedSource?.cinema}
+				<h3>Rate This Visit</h3>
+				<div class="visit-rating">
+					<div class="rating-row">
+						<span>Overall{ratingSnacks !== undefined || ratingTech !== undefined || ratingComfort !== undefined ? " (required)" : ""}</span>
+						<Rating
+							rating={ratingOverall}
+							onChange={(r) => (ratingOverall = r)}
+						/>
+					</div>
+					<div class="rating-row">
+						<span>Popcorn & Snacks</span>
+						<Rating rating={ratingSnacks} onChange={(r) => (ratingSnacks = r)} />
+					</div>
+					<div class="rating-row">
+						<span>Picture & Sound</span>
+						<Rating rating={ratingTech} onChange={(r) => (ratingTech = r)} />
+					</div>
+					<div class="rating-row">
+						<span>Comfort</span>
+						<Rating
+							rating={ratingComfort}
+							onChange={(r) => (ratingComfort = r)}
+						/>
+					</div>
+					<div class="show-name">
+						<Checkbox
+							name="rating-show-name"
+							bind:value={ratingShowName}
+						/>
+						<span>Show my name with this rating</span>
+					</div>
+				</div>
 			{/if}
 			<h3>Language</h3>
 			<div class="langs">
@@ -257,6 +326,29 @@
 		flex-flow: column;
 		gap: 10px;
 		height: 100%;
+
+		.visit-rating {
+			display: flex;
+			flex-flow: column;
+			gap: 8px;
+
+			.rating-row {
+				display: flex;
+				flex-flow: column;
+				gap: 2px;
+
+				span {
+					font-size: 13px;
+				}
+			}
+
+			.show-name {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 13px;
+			}
+		}
 
 		.cinema-link {
 			font-size: 13px;

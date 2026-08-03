@@ -6,19 +6,17 @@
 	import { notify } from "../util/notify";
 	import { req } from "../util/api";
 	import type {
+		GeocodeResult,
 		WatchSource,
 		WatchSourceAddRequest,
 		WatchSourceType,
 	} from "@/types";
-	import { onMount } from "svelte";
 
 	interface Props {
-		onClose: (updated?: WatchSource) => void;
-		// Passing an existing source will enable 'Edit Source' mode.
-		existingSource?: WatchSource | undefined;
+		onClose: (created?: WatchSource) => void;
 	}
 
-	let { onClose, existingSource = undefined }: Props = $props();
+	let { onClose }: Props = $props();
 
 	const sourceTypes = [
 		{ id: "CINEMA", value: "Cinema" },
@@ -33,12 +31,52 @@
 	let sourceType: string | number | undefined = $state(undefined);
 	let error = $state("");
 	let submitDisabled = $state(false);
-	let modalTitle = $state("Create A Watch Source");
-	let modalDesc = $state("Create a new watch source");
-	let submitBtnText = $state("Create Source");
 
-	async function addSource() {
-		console.debug("addSource:", sourceName, sourceType);
+	// Cinemas are anchored on OpenStreetMap: search + pick instead of
+	// typing (free form fallback below for unmapped cinemas).
+	let isCinema = $derived(sourceType === "CINEMA");
+	let osmQuery = $state("");
+	let osmResults = $state<GeocodeResult[]>([]);
+	let osmSearching = $state(false);
+	let osmPick = $state<GeocodeResult | undefined>(undefined);
+	let freeForm = $state(false);
+
+	async function searchOsm() {
+		if (!osmQuery) return;
+		osmSearching = true;
+		osmPick = undefined;
+		try {
+			osmResults = await req.get<GeocodeResult[]>(
+				`/geocode?q=${encodeURIComponent(osmQuery)}`,
+			);
+			// Cinemas first.
+			osmResults.sort((a, b) =>
+				a.type === "cinema" === (b.type === "cinema")
+					? 0
+					: a.type === "cinema"
+						? -1
+						: 1,
+			);
+			if (osmResults.length === 0) {
+				notify({ text: "No results found", type: "error", time: 2 });
+			}
+		} catch (err) {
+			console.error("searchOsm: Failed!", err);
+			notify({ text: "Search failed!", type: "error", time: 2 });
+		}
+		osmSearching = false;
+	}
+
+	function pickOsm(r: GeocodeResult) {
+		osmPick = r;
+		osmResults = [];
+		if (!sourceName) {
+			// First segment of the display name is usually the poi name.
+			sourceName = r.display_name.split(",")[0];
+		}
+	}
+
+	async function submitClicked() {
 		if (!sourceName) {
 			error = "Source must have a name!";
 			return;
@@ -47,13 +85,33 @@
 			error = "Source must have a type!";
 			return;
 		}
+		if (isCinema && !osmPick && !freeForm) {
+			error = "Pick the cinema from the search (or switch to free form).";
+			return;
+		}
+		submitDisabled = true;
 		const nid = notify({ text: "Creating Source", type: "loading" });
 		try {
-			const resp = await req.post<WatchSource>("/source", {
+			const body: WatchSourceAddRequest = {
 				name: sourceName,
 				type: sourceType as WatchSourceType,
-			} as WatchSourceAddRequest);
-			console.log("addSource: Source was created", resp);
+			};
+			if (isCinema && osmPick) {
+				body.osmType = osmPick.osm_type;
+				body.osmId = osmPick.osm_id;
+				body.wikidataId = osmPick.extratags?.wikidata ?? "";
+				body.lat = Number(osmPick.lat);
+				body.lon = Number(osmPick.lon);
+				body.city =
+					osmPick.address?.city ??
+					osmPick.address?.town ??
+					osmPick.address?.village ??
+					"";
+				body.address = [osmPick.address?.road, osmPick.address?.house_number]
+					.filter(Boolean)
+					.join(" ");
+			}
+			const resp = await req.post<WatchSource>("/source", body);
 			notify({ id: nid, text: "Source Created!", type: "success" });
 			onClose(resp);
 		} catch (err) {
@@ -61,80 +119,22 @@
 			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
 			error = "Failed!";
 		}
-	}
-
-	async function updateSource() {
-		console.debug("updateSource:", existingSource, sourceName, sourceType);
-		if (!sourceName) {
-			error = "Source must have a name!";
-			return;
-		}
-		const nid = notify({ text: "Modifying Source", type: "loading" });
-		try {
-			await req.put(`/source/${existingSource!.id}`, {
-				name: sourceName,
-				type: sourceType as WatchSourceType,
-			} as WatchSourceAddRequest);
-			existingSource!.name = sourceName;
-			existingSource!.type = sourceType as WatchSourceType;
-			notify({ id: nid, text: "Source Modified!", type: "success" });
-			onClose(existingSource);
-		} catch (err) {
-			console.error("updateSource: Failed!", err);
-			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
-			error = "Failed!";
-		}
-	}
-
-	async function submitClicked() {
-		submitDisabled = true;
-		try {
-			if (existingSource) {
-				await updateSource();
-			} else {
-				await addSource();
-			}
-		} catch (err) {
-			console.log("CreateSourceModal: Submit failed!", err);
-		}
 		submitDisabled = false;
 	}
-
-	onMount(() => {
-		if (existingSource) {
-			console.log(
-				"CreateSourceModal: Entering edit mode for source:",
-				existingSource,
-			);
-			modalTitle = "Edit Watch Source";
-			modalDesc = "Edit an existing watch source";
-			submitBtnText = "Edit Source";
-			sourceName = existingSource.name;
-			sourceType = existingSource.type;
-		}
-	});
 </script>
 
 <div class="wrap">
 	<Modal
-		title={modalTitle}
-		desc={modalDesc}
+		title="Create A Watch Source"
+		desc="Sources are shared with everyone on this server"
 		maxWidth="500px"
 		onClose={() => onClose()}
 		{error}
 	>
 		<SettingsList>
-			<Setting title="Name" desc="What should we call this source?">
-				<input
-					type="text"
-					name="name"
-					placeholder="Name"
-					bind:value={sourceName}
-				/>
-			</Setting>
 			<Setting
 				title="Type"
-				desc="What kind of source is this? Cinemas can have extra details."
+				desc="What kind of source is this? Cinemas are picked from OpenStreetMap."
 			>
 				<DropDown
 					options={sourceTypes}
@@ -143,12 +143,53 @@
 					placeholder="Type"
 				/>
 			</Setting>
+			{#if isCinema && !freeForm}
+				<Setting
+					title="Find Cinema"
+					desc="Search OpenStreetMap and pick your cinema."
+				>
+					<div class="osm-search">
+						<input
+							type="text"
+							placeholder="eg CineStar Metropolis Frankfurt"
+							bind:value={osmQuery}
+							onkeydown={(ev) => ev.key === "Enter" && searchOsm()}
+						/>
+						<button onclick={() => searchOsm()} disabled={osmSearching}>
+							Search
+						</button>
+					</div>
+					{#if osmResults.length > 0}
+						<div class="osm-results">
+							{#each osmResults as r (`${r.osm_type}${r.osm_id}`)}
+								<button class="plain" onclick={() => pickOsm(r)}>
+									{r.type === "cinema" ? "🎬 " : ""}{r.display_name}
+								</button>
+							{/each}
+						</div>
+					{/if}
+					{#if osmPick}
+						<p class="osm-picked">Picked: {osmPick.display_name}</p>
+					{/if}
+					<button class="plain free-form-toggle" onclick={() => (freeForm = true)}>
+						Cinema not on OpenStreetMap? Create free form
+					</button>
+				</Setting>
+			{/if}
+			<Setting title="Name" desc="What should we call this source?">
+				<input
+					type="text"
+					name="name"
+					placeholder="Name"
+					bind:value={sourceName}
+				/>
+			</Setting>
 			<button
 				class="add-source-btn"
 				onclick={() => submitClicked()}
 				disabled={submitDisabled}
 			>
-				{submitBtnText}
+				Create Source
 			</button>
 		</SettingsList>
 	</Modal>
@@ -162,5 +203,41 @@
 
 	.wrap {
 		color: $text-color;
+	}
+
+	.osm-search {
+		display: flex;
+		gap: 8px;
+
+		input {
+			min-width: 0;
+		}
+
+		button {
+			width: max-content;
+		}
+	}
+
+	.osm-results {
+		display: flex;
+		flex-flow: column;
+		gap: 4px;
+		margin-top: 8px;
+
+		button {
+			text-align: left;
+			font-size: 13px;
+		}
+	}
+
+	.osm-picked {
+		margin-top: 8px;
+		font-size: 13px;
+	}
+
+	.free-form-toggle {
+		margin-top: 8px;
+		font-size: 13px;
+		width: max-content;
 	}
 </style>

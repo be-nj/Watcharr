@@ -25,6 +25,13 @@ type (
 		AudioLang      string `json:"audioLang"`
 		SubtitleLang   string `json:"subtitleLang"`
 		Note           string `json:"note"`
+		// Visit rating for the cinema of this watch. Overall is
+		// required as soon as any dimension is set.
+		RatingOverall  *float64 `json:"ratingOverall" binding:"omitempty,max=10"`
+		RatingSnacks   *float64 `json:"ratingSnacks" binding:"omitempty,max=10"`
+		RatingTech     *float64 `json:"ratingTech" binding:"omitempty,max=10"`
+		RatingComfort  *float64 `json:"ratingComfort" binding:"omitempty,max=10"`
+		RatingShowName bool     `json:"ratingShowName"`
 	}
 
 	ActivityAddProvider interface {

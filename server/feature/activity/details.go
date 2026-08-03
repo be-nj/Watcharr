@@ -36,9 +36,10 @@ func (s *Service) UpdateActivityDetails(
 	// Verify the referenced source (and screen) belong to the user.
 	if dr.WatchSourceID != nil {
 		source := new(entity.WatchSource)
+		// Sources are shared by the instance (ADR 0003), no user scoping.
 		res = s.db.
 			Model(&entity.WatchSource{}).
-			Where("id = ? AND user_id = ?", *dr.WatchSourceID, userId).
+			Where("id = ?", *dr.WatchSourceID).
 			Preload("Cinema").
 			Preload("Cinema.Screens").
 			Find(&source)
@@ -49,6 +50,11 @@ func (s *Service) UpdateActivityDetails(
 		}
 		if source.ID == 0 {
 			return entity.ActivityDetails{}, errors.New("source does not exist")
+		}
+		if (dr.RatingOverall != nil || dr.RatingSnacks != nil ||
+			dr.RatingTech != nil || dr.RatingComfort != nil) &&
+			source.Type != entity.SOURCE_CINEMA {
+			return entity.ActivityDetails{}, errors.New("visit ratings are only for cinemas")
 		}
 		if dr.CinemaScreenID != nil {
 			if source.Cinema == nil {
@@ -68,6 +74,18 @@ func (s *Service) UpdateActivityDetails(
 	} else if dr.CinemaScreenID != nil {
 		return entity.ActivityDetails{}, errors.New("screen cannot be set without a source")
 	}
+	// Visit ratings need a cinema source, and overall is required as
+	// soon as any dimension is rated.
+	anyRating := dr.RatingOverall != nil || dr.RatingSnacks != nil ||
+		dr.RatingTech != nil || dr.RatingComfort != nil
+	if anyRating {
+		if dr.WatchSourceID == nil {
+			return entity.ActivityDetails{}, errors.New("a visit rating needs a cinema source")
+		}
+		if dr.RatingOverall == nil {
+			return entity.ActivityDetails{}, errors.New("an overall rating is required when rating a visit")
+		}
+	}
 	// Get or create the details row.
 	details := new(entity.ActivityDetails)
 	res = s.db.Where("activity_id = ?", activity.ID).Find(&details)
@@ -82,6 +100,11 @@ func (s *Service) UpdateActivityDetails(
 	details.AudioLang = dr.AudioLang
 	details.SubtitleLang = dr.SubtitleLang
 	details.Note = dr.Note
+	details.RatingOverall = dr.RatingOverall
+	details.RatingSnacks = dr.RatingSnacks
+	details.RatingTech = dr.RatingTech
+	details.RatingComfort = dr.RatingComfort
+	details.RatingShowName = dr.RatingShowName
 	res = s.db.Save(&details)
 	if res.Error != nil {
 		slog.Error("UpdateActivityDetails: Error saving details to database",

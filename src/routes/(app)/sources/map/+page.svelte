@@ -50,12 +50,10 @@
 		for (const c of cinemas) {
 			const pos: [number, number] = [c.cinema!.lat!, c.cinema!.lon!];
 			bounds.extend(pos);
-			const rating = c.cinema?.ratingOverall
-				? `<br/>Overall: ${c.cinema.ratingOverall}/10`
+			const rating = c.ratingAverage
+				? `<br/>&Oslash; ${c.ratingAverage.toFixed(1)}/10 (${c.ratingCount} rated ${c.ratingCount === 1 ? "visit" : "visits"})`
 				: "";
-			const snacks = c.cinema?.ratingSnacks
-				? `<br/>Popcorn &amp; Snacks: ${c.cinema.ratingSnacks}/10`
-				: "";
+			const snacks = "";
 			L.marker(pos, { icon })
 				.addTo(map)
 				.bindPopup(

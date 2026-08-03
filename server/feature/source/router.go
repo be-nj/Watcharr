@@ -35,6 +35,7 @@ func (r *Router) AddRoutes() {
 	source.POST(":id/cinema/screen", r.CreateScreen)
 	source.DELETE(":id/cinema/screen/:screenId", r.DeleteScreen)
 	source.GET(":id/watches", r.GetSourceWatches)
+	source.GET(":id/ratings", r.GetSourceRatings)
 
 	// Own group: gin cannot mix a static `geocode` route with the
 	// `:id` param routes above.
@@ -74,6 +75,23 @@ func (r *Router) GetSourceWatches(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, watches)
+}
+
+// Get all visit ratings of a source (anonymised unless opted in).
+func (r *Router) GetSourceRatings(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		slog.Error("getSourceRatings route failed to convert id param to int", "error", err)
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid id"})
+		return
+	}
+	ratings, err := r.service.GetSourceRatings(userId, uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, ratings)
 }
 
 // Get all of our watch sources.

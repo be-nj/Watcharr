@@ -19,6 +19,39 @@ import (
 
 var migrations = []Migration{
 	{
+		// Fork: watch sources become instance wide (ADR 0003). Copies the
+		// old per user owner into created_by and drops user_id plus the
+		// old global cinema rating columns (ratings moved to visits).
+		ID: "202608032140_fork0001",
+		Up: func(tx *gorm.DB) error {
+			migID := "202608032140_fork0001"
+			slog.Info("Migration is starting.", "mig", migID)
+			for _, stmt := range []string{
+				"UPDATE watch_sources SET created_by = user_id WHERE created_by = 0 OR created_by IS NULL",
+				"ALTER TABLE watch_sources DROP COLUMN user_id",
+				"ALTER TABLE cinema_details DROP COLUMN rating_overall",
+				"ALTER TABLE cinema_details DROP COLUMN rating_snacks",
+				"ALTER TABLE cinema_details DROP COLUMN rating_tech",
+				"ALTER TABLE cinema_details DROP COLUMN rating_comfort",
+			} {
+				if err := tx.Exec(stmt).Error; err != nil {
+					// Fresh databases never had the old columns; nothing to do.
+					if strings.Contains(err.Error(), "no such column") ||
+						strings.Contains(err.Error(), "no such table") {
+						slog.Info("Migration step skipped (fresh database).",
+							"mig", migID, "stmt", stmt)
+						continue
+					}
+					slog.Error("Migration step failed!", "mig", migID,
+						"stmt", stmt, "error", err)
+					return err
+				}
+			}
+			slog.Info("Migration succeeded.", "mig", migID)
+			return nil
+		},
+	},
+	{
 		// Backfilling `plays` data from users Activity.
 		// (we have just created the 'count_as_play' column, instead of starting
 		// existing data from 0 plays, we can check what existing activities

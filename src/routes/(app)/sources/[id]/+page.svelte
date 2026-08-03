@@ -3,7 +3,6 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import DropDown from "@/lib/DropDown.svelte";
-	import Rating from "@/lib/rating/Rating.svelte";
 	import Error from "@/lib/Error.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
 	import Setting from "@/lib/settings/Setting.svelte";
@@ -16,6 +15,7 @@
 		GeocodeResult,
 		WatchSource,
 		WatchSourceType,
+		WatchSourceRating,
 		WatchSourceWatch,
 	} from "@/types";
 
@@ -31,6 +31,7 @@
 	let sourceId = $derived(Number(page.params.id));
 	let source = $state<WatchSource | undefined>(undefined);
 	let watches = $state<WatchSourceWatch[]>([]);
+	let ratings = $state<WatchSourceRating[]>([]);
 	let loadPromise = $state(load());
 
 	// Editierbare Felder
@@ -41,10 +42,6 @@
 	let lat = $state<number | undefined>(undefined);
 	let lon = $state<number | undefined>(undefined);
 	let note = $state("");
-	let ratingOverall = $state<number | undefined>(undefined);
-	let ratingSnacks = $state<number | undefined>(undefined);
-	let ratingTech = $state<number | undefined>(undefined);
-	let ratingComfort = $state<number | undefined>(undefined);
 	let screens = $state<CinemaScreen[]>([]);
 	let newScreenName = $state("");
 	let geocodeResults = $state<GeocodeResult[]>([]);
@@ -63,46 +60,14 @@
 		lat = s.cinema?.lat;
 		lon = s.cinema?.lon;
 		note = s.cinema?.note ?? "";
-		ratingOverall = s.cinema?.ratingOverall;
-		ratingSnacks = s.cinema?.ratingSnacks;
-		ratingTech = s.cinema?.ratingTech;
-		ratingComfort = s.cinema?.ratingComfort;
 		screens = s.cinema?.screens ?? [];
 		watches = await req.get<WatchSourceWatch[]>(
 			`/source/${Number(page.params.id)}/watches`,
 		);
-	}
-
-	// Ratings save immediately on interaction (like rating a title),
-	// they are not part of the master data form below.
-	async function saveRating(
-		dimension:
-			| "ratingOverall"
-			| "ratingSnacks"
-			| "ratingTech"
-			| "ratingComfort",
-		value: number | undefined,
-	) {
-		if (dimension === "ratingOverall") ratingOverall = value;
-		if (dimension === "ratingSnacks") ratingSnacks = value;
-		if (dimension === "ratingTech") ratingTech = value;
-		if (dimension === "ratingComfort") ratingComfort = value;
-		try {
-			await req.put(`/source/${sourceId}/cinema`, {
-				city,
-				address,
-				lat,
-				lon,
-				note,
-				ratingOverall,
-				ratingSnacks,
-				ratingTech,
-				ratingComfort,
-			} as CinemaDetailsUpdateRequest);
-			notify({ text: "Rating Saved!", type: "success", time: 1 });
-		} catch (err) {
-			console.error("saveRating: Failed!", err);
-			notify({ text: "Failed!", type: "error", time: 2 });
+		if (s.type === "CINEMA") {
+			ratings = await req.get<WatchSourceRating[]>(
+				`/source/${Number(page.params.id)}/ratings`,
+			);
 		}
 	}
 
@@ -125,10 +90,6 @@
 					lat,
 					lon,
 					note,
-					ratingOverall,
-					ratingSnacks,
-					ratingTech,
-					ratingComfort,
 				} as CinemaDetailsUpdateRequest);
 			}
 			notify({ id: nid, text: "Source Saved!", type: "success" });
@@ -259,40 +220,50 @@
 							</div>
 						{/if}
 					</Setting>
+					{#if source?.cinema?.osmId}
+						<Setting
+							title="OpenStreetMap"
+							desc="This cinema is anchored on OSM; local data is a cached copy."
+						>
+							<a
+								href={`https://www.openstreetmap.org/${source.cinema.osmType}/${source.cinema.osmId}`}
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								{source.cinema.osmType}/{source.cinema.osmId} ↗
+							</a>
+						</Setting>
+					{/if}
 					<Setting
-						title="Ratings"
-						desc="Saved as you rate - all optional, rate only what you care about."
+						title="Visit Ratings"
+						desc="Ratings are given per visit when logging a watch."
 					>
-						<div class="ratings">
-							<div class="rating-row">
-								<span>Overall</span>
-								<Rating
-									rating={ratingOverall}
-									onChange={(r) => saveRating("ratingOverall", r)}
-								/>
+						{#if source?.ratingCount}
+							<p class="rating-aggregate">
+								Ø {source.ratingAverage?.toFixed(1)}/10 from {source.ratingCount}
+								rated {source.ratingCount === 1 ? "visit" : "visits"}
+							</p>
+						{:else}
+							<p class="empty">No visit ratings yet.</p>
+						{/if}
+						{#if ratings.length > 0}
+							<div class="rating-list">
+								{#each ratings as r (r.date + (r.username || "anon"))}
+									<div class="rating-entry" class:own={r.own}>
+										<span class="who">
+											{r.username || "Anonymous"}{r.own ? " (you)" : ""}
+											· {formatDate(r.date)}
+										</span>
+										<span class="dims">
+											{r.ratingOverall}/10
+											{r.ratingSnacks ? ` · Popcorn ${r.ratingSnacks}` : ""}
+											{r.ratingTech ? ` · Tech ${r.ratingTech}` : ""}
+											{r.ratingComfort ? ` · Comfort ${r.ratingComfort}` : ""}
+										</span>
+									</div>
+								{/each}
 							</div>
-							<div class="rating-row">
-								<span>Popcorn & Snacks</span>
-								<Rating
-									rating={ratingSnacks}
-									onChange={(r) => saveRating("ratingSnacks", r)}
-								/>
-							</div>
-							<div class="rating-row">
-								<span>Picture & Sound</span>
-								<Rating
-									rating={ratingTech}
-									onChange={(r) => saveRating("ratingTech", r)}
-								/>
-							</div>
-							<div class="rating-row">
-								<span>Comfort</span>
-								<Rating
-									rating={ratingComfort}
-									onChange={(r) => saveRating("ratingComfort", r)}
-								/>
-							</div>
-						</div>
+						{/if}
 					</Setting>
 					<Setting title="Notes" desc="Anything to remember about this cinema.">
 						<textarea
@@ -407,17 +378,34 @@
 		}
 	}
 
-	.ratings {
+	.rating-aggregate {
+		font-size: 15px;
+		font-weight: bold;
+	}
+
+	.rating-list {
 		display: flex;
 		flex-flow: column;
-		gap: 12px;
+		gap: 6px;
+		margin-top: 8px;
 
-		.rating-row {
+		.rating-entry {
 			display: flex;
 			flex-flow: column;
-			gap: 2px;
+			padding: 6px 10px;
+			border-radius: 8px;
+			background-color: $accent-color;
 
-			span {
+			&.own {
+				outline: 1px solid $text-color;
+			}
+
+			.who {
+				font-size: 12px;
+				opacity: 0.7;
+			}
+
+			.dims {
 				font-size: 14px;
 			}
 		}

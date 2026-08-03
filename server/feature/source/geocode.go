@@ -13,6 +13,21 @@ type GeocodeResult struct {
 	DisplayName string `json:"display_name"`
 	Lat         string `json:"lat"`
 	Lon         string `json:"lon"`
+	// OSM reference + object kind, for anchoring cinemas (ADR 0003).
+	OsmType string `json:"osm_type"`
+	OsmID   int64  `json:"osm_id"`
+	Class   string `json:"class"`
+	Type    string `json:"type"`
+	Address struct {
+		City        string `json:"city"`
+		Town        string `json:"town"`
+		Village     string `json:"village"`
+		Road        string `json:"road"`
+		HouseNumber string `json:"house_number"`
+	} `json:"address"`
+	Extratags struct {
+		Wikidata string `json:"wikidata"`
+	} `json:"extratags"`
 }
 
 // Geocode a free text query (eg cinema name + city) via the public
@@ -27,6 +42,8 @@ func (s *Service) Geocode(query string) ([]GeocodeResult, error) {
 	params.Add("q", query)
 	params.Add("format", "json")
 	params.Add("limit", "5")
+	params.Add("addressdetails", "1")
+	params.Add("extratags", "1")
 	base.RawQuery = params.Encode()
 
 	client := &http.Client{}

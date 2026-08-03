@@ -21,4 +21,15 @@ type ActivityDetails struct {
 	SubtitleLang string `json:"subtitleLang"`
 	// Free text note for this watch.
 	Note string `json:"note"`
+	// Visit rating for the cinema this watch happened in (only valid
+	// with a cinema watch source). All dimensions optional, but overall
+	// is required as soon as any dimension is rated (validated in the
+	// service). Like watched ratings these are always out of 10.0.
+	RatingOverall *float64 `json:"ratingOverall" gorm:"type:numeric(2,1)"`
+	RatingSnacks  *float64 `json:"ratingSnacks" gorm:"type:numeric(2,1)"`
+	RatingTech    *float64 `json:"ratingTech" gorm:"type:numeric(2,1)"`
+	RatingComfort *float64 `json:"ratingComfort" gorm:"type:numeric(2,1)"`
+	// Whether the users name may be shown next to this rating (opt in,
+	// default anonymous).
+	RatingShowName bool `json:"ratingShowName"`
 }

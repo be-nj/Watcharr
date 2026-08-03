@@ -124,14 +124,25 @@ export type WatchSourceType =
 	| "OTHER";
 
 export interface WatchSource extends dbModel {
+	createdBy: number;
 	name: string;
 	type: WatchSourceType;
 	cinema?: CinemaDetails;
+	// Visit rating aggregate, filled by the server.
+	ratingAverage?: number;
+	ratingCount?: number;
 }
 
 export interface WatchSourceAddRequest {
 	name: string;
 	type: WatchSourceType;
+	city?: string;
+	address?: string;
+	lat?: number;
+	lon?: number;
+	osmType?: string;
+	osmId?: number;
+	wikidataId?: string;
 }
 
 export interface CinemaDetails {
@@ -140,11 +151,10 @@ export interface CinemaDetails {
 	address: string;
 	lat?: number;
 	lon?: number;
+	osmType: string;
+	osmId: number;
+	wikidataId: string;
 	note: string;
-	ratingOverall?: number;
-	ratingSnacks?: number;
-	ratingTech?: number;
-	ratingComfort?: number;
 	screens?: CinemaScreen[];
 }
 
@@ -154,10 +164,6 @@ export interface CinemaDetailsUpdateRequest {
 	lat?: number;
 	lon?: number;
 	note: string;
-	ratingOverall?: number;
-	ratingSnacks?: number;
-	ratingTech?: number;
-	ratingComfort?: number;
 }
 
 export interface CinemaScreen {
@@ -174,6 +180,11 @@ export interface ActivityDetails {
 	audioLang: string;
 	subtitleLang: string;
 	note: string;
+	ratingOverall?: number;
+	ratingSnacks?: number;
+	ratingTech?: number;
+	ratingComfort?: number;
+	ratingShowName: boolean;
 }
 
 export interface ActivityDetailsUpdateRequest {
@@ -182,12 +193,42 @@ export interface ActivityDetailsUpdateRequest {
 	audioLang: string;
 	subtitleLang: string;
 	note: string;
+	ratingOverall?: number;
+	ratingSnacks?: number;
+	ratingTech?: number;
+	ratingComfort?: number;
+	ratingShowName: boolean;
 }
 
 export interface GeocodeResult {
 	display_name: string;
 	lat: string;
 	lon: string;
+	osm_type: string;
+	osm_id: number;
+	class: string;
+	type: string;
+	address?: {
+		city?: string;
+		town?: string;
+		village?: string;
+		road?: string;
+		house_number?: string;
+	};
+	extratags?: {
+		wikidata?: string;
+	};
+}
+
+// A single visit rating of a source (username empty unless opted in).
+export interface WatchSourceRating {
+	date: string;
+	ratingOverall?: number;
+	ratingSnacks?: number;
+	ratingTech?: number;
+	ratingComfort?: number;
+	username: string;
+	own: boolean;
 }
 
 // A single watch that used a source (for the source detail page).

@@ -27,17 +27,21 @@ func (t WatchSourceType) IsValid() bool {
 }
 
 // A watch source describes where/how a watch happened (a cinema, a
-// streaming service, live tv, ...). Owned by a user, referenced by their
-// activities. Only cinema sources carry extra details.
+// streaming service, live tv, ...). Sources belong to the instance and
+// are shared by all users; CreatedBy is provenance, not ownership.
+// Only cinema sources carry extra details.
 type WatchSource struct {
 	dbmodel.GormModel
-	// ID of user that owns this source.
-	UserID uint `json:"-" gorm:"not null"`
+	// ID of user that created this source.
+	CreatedBy uint `json:"createdBy" gorm:"not null"`
 	// Display name of the source (eg `CineStar Metropolis` or `Disney+`).
 	Name string          `json:"name" gorm:"not null"`
 	Type WatchSourceType `json:"type" gorm:"not null"`
 	// Only set for sources of type cinema.
 	Cinema *CinemaDetails `json:"cinema,omitempty" gorm:"foreignKey:WatchSourceID"`
+	// Visit rating aggregate (not stored, filled when listing sources).
+	RatingAverage *float64 `json:"ratingAverage,omitempty" gorm:"-"`
+	RatingCount   int64    `json:"ratingCount,omitempty" gorm:"-"`
 }
 
 type CinemaDetails struct {
@@ -47,14 +51,17 @@ type CinemaDetails struct {
 	Address       string   `json:"address"`
 	Lat           *float64 `json:"lat"`
 	Lon           *float64 `json:"lon"`
-	// Free text notes (no-gos like `has no popcorn!`).
+	// Reference to the real world cinema on OpenStreetMap. The local
+	// name/coordinates/address are a CACHE of it: never auto-synced,
+	// refreshed only on explicit user action, and never cleared when
+	// the object disappears upstream. Empty for cinemas without an OSM
+	// entry (free form fallback).
+	OsmType    string `json:"osmType"`
+	OsmID      int64  `json:"osmId"`
+	WikidataID string `json:"wikidataId"`
+	// Free text notes (no-gos like `has no popcorn!`), shared by the
+	// instance like the cinema itself.
 	Note string `json:"note"`
-	// Optional ratings, every dimension can be left empty.
-	// Like watched ratings these are always saved as out of 10.0.
-	RatingOverall *float64 `json:"ratingOverall" gorm:"type:numeric(2,1)"`
-	RatingSnacks  *float64 `json:"ratingSnacks" gorm:"type:numeric(2,1)"`
-	RatingTech    *float64 `json:"ratingTech" gorm:"type:numeric(2,1)"`
-	RatingComfort *float64 `json:"ratingComfort" gorm:"type:numeric(2,1)"`
 	// Screens of this cinema (a watch can reference which screen it was in).
 	Screens []CinemaScreen `json:"screens,omitempty" gorm:"foreignKey:CinemaDetailsID"`
 }
