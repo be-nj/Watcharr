@@ -139,6 +139,14 @@ func (s *Service) SuccessfulImport(
 			}
 		}
 	}
+	// Watches (with metadata) can provide the watched date too.
+	if len(ar.Watches) > 0 {
+		for _, watch := range ar.Watches {
+			if watch.Date.After(wDate) {
+				wDate = watch.Date
+			}
+		}
+	}
 	// Build WatchedAddRequest
 	wAddReq := domain.WatchedAddRequest{
 		ContentType: props.ContentType,
@@ -166,6 +174,13 @@ func (s *Service) SuccessfulImport(
 		})
 	if err != nil {
 		if errors.Is(err, domain.ErrWatchedExists) {
+			if len(ar.Watches) > 0 {
+				// Imports with per watch metadata merge into the
+				// existing entry instead of failing.
+				slog.Info("successfulImport: Content exists, merging watches.",
+					"tmdb_id", props.TmdbID)
+				return s.mergeImportWatches(userId, ar, props)
+			}
 			slog.Error("successfulImport: Must already be on watch list",
 				"error", err)
 			return domain.ImportResponse{Type: domain.IMPORT_EXISTS}
@@ -236,6 +251,15 @@ func (s *Service) SuccessfulImport(
 				slog.Error("successfulImport: Failed to add dateswatched activity.",
 					"date", v, "error", err)
 			}
+		}
+	}
+	// Add all watches with their metadata, if any.
+	// The AddWatched activity above already counts as one play, so it
+	// gets replaced by the watches (which carry the real dates) to
+	// avoid a duplicate play count.
+	if len(ar.Watches) > 0 {
+		if err := s.applyImportWatches(userId, w.ID, ar.Watches, true); err != nil {
+			slog.Error("successfulImport: Failed to apply watches.", "error", err)
 		}
 	}
 	// Add all activity passed in.

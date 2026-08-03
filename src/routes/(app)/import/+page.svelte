@@ -15,6 +15,9 @@
 	import papa from "papaparse";
 	import type {
 		ImportedList,
+		LetterboxdDiaryRow,
+		LetterboxdRatingsRow,
+		LetterboxdWatchedRow,
 		MovaryHistory,
 		MovaryRatings,
 		MovaryWatchlist,
@@ -247,6 +250,157 @@
 			store.importedList = {
 				data: JSON.stringify(toImport),
 				type: "movary",
+			};
+			goto(resolve("/import/process"));
+		} catch (err) {
+			isLoading = false;
+			notify({ type: "error", text: "Failed to read files!" });
+			console.error("import: Failed to read files!", err);
+		}
+	}
+
+	/**
+	 * Process letterboxd export files.
+	 *
+	 * Letterboxd exports multiple files, we use up to 3:
+	 *
+	 *  - diary.csv   = Dated watches, one row per watch (rewatches have
+	 *                  their own rows), incl per watch tags and rating.
+	 *  - ratings.csv = Ratings for movies. One rating per movie.
+	 *  - watched.csv = All watched movies, incl ones without diary entry.
+	 *
+	 * Letterboxd rates out of 5 (0.5 steps), so ratings are doubled.
+	 * Rows are grouped by the Letterboxd URI (unique per movie), the
+	 * server matches content by name+year.
+	 */
+	async function processFilesLetterboxd(files?: FileList | null) {
+		try {
+			console.log("processFilesLetterboxd", files);
+			if (!files || files?.length <= 0) {
+				console.error("processFilesLetterboxd", "No files to process!");
+				notify({
+					type: "error",
+					text: "File not found in dropped items. Please try again or refresh.",
+					time: 6000,
+				});
+				return;
+			}
+			isLoading = true;
+			let diary: string | undefined;
+			let ratings: string | undefined;
+			let watched: string | undefined;
+			const r = new FileReader();
+			for (let i = 0; i < files.length; i++) {
+				const f = files[i];
+				if (f.name === "diary.csv") {
+					diary = await readFile(r, f);
+				} else if (f.name === "ratings.csv") {
+					ratings = await readFile(r, f);
+				} else if (f.name === "watched.csv") {
+					watched = await readFile(r, f);
+				}
+			}
+			if (!diary && !watched) {
+				notify({
+					type: "error",
+					text: "No usable files found. Please attach diary.csv and/or watched.csv (ratings.csv optional) from your letterboxd export.",
+					time: 6000,
+				});
+				isLoading = false;
+				return;
+			}
+			const diaryJson = diary
+				? papa.parse<LetterboxdDiaryRow>(diary.trim(), { header: true })
+				: undefined;
+			const ratingsJson = ratings
+				? papa.parse<LetterboxdRatingsRow>(ratings.trim(), { header: true })
+				: undefined;
+			const watchedJson = watched
+				? papa.parse<LetterboxdWatchedRow>(watched.trim(), { header: true })
+				: undefined;
+			const toImport: ImportedList[] = [];
+			const byUri = new Map<string, ImportedList>();
+			// All diary rows (one row = one watch with date/tags/rating).
+			if (diaryJson) {
+				for (let i = 0; i < diaryJson.data.length; i++) {
+					const d = diaryJson.data[i];
+					const uri = d["Letterboxd URI"];
+					if (!d.Name || !uri) {
+						continue;
+					}
+					let t = byUri.get(uri);
+					if (!t) {
+						t = {
+							name: d.Name,
+							status: "FINISHED",
+							type: "movie", // letterboxd only supports movies
+							watches: [],
+						};
+						if (d.Year) {
+							t.year = Number(d.Year);
+						}
+						byUri.set(uri, t);
+						toImport.push(t);
+					}
+					if (d["Watched Date"]) {
+						t.watches?.push({
+							date: new Date(d["Watched Date"]).toISOString(),
+							tags: d.Tags
+								? d.Tags.split(",")
+										.map((tag) => tag.trim().toLowerCase())
+										.filter((tag) => tag !== "")
+								: [],
+						});
+					}
+					if (d.Rating && !t.rating) {
+						t.rating = Number(d.Rating) * 2;
+					}
+				}
+			}
+			// Ratings win over diary ratings (letterboxd keeps them current).
+			if (ratingsJson) {
+				for (let i = 0; i < ratingsJson.data.length; i++) {
+					const rt = ratingsJson.data[i];
+					const uri = rt["Letterboxd URI"];
+					if (!uri || !rt.Rating) {
+						continue;
+					}
+					const t = byUri.get(uri);
+					if (t) {
+						t.rating = Number(rt.Rating) * 2;
+					}
+				}
+			}
+			// Watched movies without a diary entry: imported without dates.
+			if (watchedJson) {
+				for (let i = 0; i < watchedJson.data.length; i++) {
+					const w = watchedJson.data[i];
+					const uri = w["Letterboxd URI"];
+					if (!w.Name || !uri || byUri.has(uri)) {
+						continue;
+					}
+					const ratingsEntry = ratingsJson?.data.find(
+						(rt) => rt["Letterboxd URI"] === uri,
+					);
+					const t: ImportedList = {
+						name: w.Name,
+						status: "FINISHED",
+						type: "movie",
+					};
+					if (w.Year) {
+						t.year = Number(w.Year);
+					}
+					if (ratingsEntry?.Rating) {
+						t.rating = Number(ratingsEntry.Rating) * 2;
+					}
+					byUri.set(uri, t);
+					toImport.push(t);
+				}
+			}
+			console.log("toImport:", toImport);
+			store.importedList = {
+				data: JSON.stringify(toImport),
+				type: "letterboxd",
 			};
 			goto(resolve("/import/process"));
 		} catch (err) {
@@ -730,6 +884,12 @@
 					icon="movary"
 					text="Movary Exports"
 					filesSelected={(f) => processFilesMovary(f)}
+					allowSelectMultipleFiles
+				/>
+
+				<DropFileButton
+					text="Letterboxd Export"
+					filesSelected={(f) => processFilesLetterboxd(f)}
 					allowSelectMultipleFiles
 				/>
 

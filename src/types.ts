@@ -649,6 +649,13 @@ export interface ImportedList {
 	watchedEpisodes?: WatchedEpisode[];
 	watchedSeasons?: WatchedSeason[];
 	tags?: TagAddRequest[];
+	watches?: ImportedWatch[];
+}
+
+// A single watch with its own metadata (eg a letterboxd diary entry).
+export interface ImportedWatch {
+	date: string;
+	tags: string[];
 }
 
 export interface Filters {
@@ -849,6 +856,33 @@ interface MovaryExportBase {
 export interface MovaryHistory extends MovaryExportBase {
 	watchedAt: string;
 	comment: string;
+}
+
+// Letterboxd export csv rows (headers contain spaces).
+export interface LetterboxdDiaryRow {
+	Date: string;
+	Name: string;
+	Year: string;
+	"Letterboxd URI": string;
+	Rating: string;
+	Rewatch: string;
+	Tags: string;
+	"Watched Date": string;
+}
+
+export interface LetterboxdRatingsRow {
+	Date: string;
+	Name: string;
+	Year: string;
+	"Letterboxd URI": string;
+	Rating: string;
+}
+
+export interface LetterboxdWatchedRow {
+	Date: string;
+	Name: string;
+	Year: string;
+	"Letterboxd URI": string;
 }
 
 export interface MovaryRatings extends MovaryExportBase {

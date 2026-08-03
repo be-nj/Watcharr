@@ -62,6 +62,17 @@ type ImportRequest struct {
 	WatchedEpisodes  []entity.WatchedEpisode `json:"watchedEpisodes"`
 	WatchedSeason    []entity.WatchedSeason  `json:"watchedSeasons"`
 	Tags             []TagAddRequest         `json:"tags"`
+	// Watches with their own metadata (eg letterboxd diary entries).
+	// When set and the content already exists on the users list, the
+	// watches are merged into the existing entry instead of failing
+	// with IMPORT_EXISTS.
+	Watches []ImportWatch `json:"watches"`
+}
+
+// A single watch with its own metadata (eg a letterboxd diary entry).
+type ImportWatch struct {
+	Date time.Time `json:"date"`
+	Tags []string  `json:"tags"`
 }
 
 // Internal struct given to the SuccessfulImport function.

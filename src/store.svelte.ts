@@ -36,7 +36,8 @@ interface Store {
 					| "myanimelist"
 					| "ryot"
 					| "todomovies"
-					| "imdb";
+					| "imdb"
+					| "letterboxd";
 		  }
 		| undefined;
 	parsedImportedList: ImportedList[] | undefined;
