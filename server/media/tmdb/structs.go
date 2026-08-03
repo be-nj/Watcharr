@@ -337,13 +337,25 @@ func (t *ContentDetails) AsMedia() domain.Media {
 		})
 	}
 	// Watch providers
+	// The same provider can appear in multiple categories (eg Apple TV in
+	// both free and flatrate). The frontend keys providers by name, so
+	// duplicates must be skipped here to avoid breaking the render.
+	seenProviders := map[string]bool{}
 	for _, v := range t.WatchProvidersTransformed.Free {
+		if seenProviders[v.ProviderName] {
+			continue
+		}
+		seenProviders[v.ProviderName] = true
 		m.Providers = append(m.Providers, domain.MediaProvider{
 			Name: v.ProviderName,
 			Type: domain.MediaProviderTypeFree,
 		})
 	}
 	for _, v := range t.WatchProvidersTransformed.Flatrate {
+		if seenProviders[v.ProviderName] {
+			continue
+		}
+		seenProviders[v.ProviderName] = true
 		m.Providers = append(m.Providers, domain.MediaProvider{
 			Name: v.ProviderName,
 			Type: domain.MediaProviderTypeSub,
