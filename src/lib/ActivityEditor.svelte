@@ -133,6 +133,22 @@
 		} catch (err) {
 			console.error("ActivityEditor: Failed getting sources!", err);
 		}
+		// The watched list endpoints don't include activity details, so
+		// fetch them fresh from the activity endpoint (which does).
+		try {
+			const acts = await req.get<Activity[]>(`/activity/${activity.watchedId}`);
+			const fresh = acts.find((a) => a.id === activity.id);
+			if (fresh?.details) {
+				activity.details = fresh.details;
+				selectedSourceId = fresh.details.watchSourceId;
+				selectedScreenId = fresh.details.cinemaScreenId;
+				audioLang = fresh.details.audioLang ?? "";
+				subtitleLang = fresh.details.subtitleLang ?? "";
+				detailsNote = fresh.details.note ?? "";
+			}
+		} catch (err) {
+			console.error("ActivityEditor: Failed getting activity details!", err);
+		}
 	});
 
 	async function saveDetails(): Promise<boolean> {
