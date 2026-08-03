@@ -111,9 +111,15 @@ func (s *Service) osmLookup(osmType string, osmID int64) (*GeocodeResult, error)
 // Official website (P856) of a wikidata entity, empty when not set.
 // https://www.wikidata.org/wiki/Special:EntityData
 func (s *Service) wikidataWebsite(wikidataId string) (string, error) {
-	res, err := http.Get(fmt.Sprintf(
+	req, err := http.NewRequest("GET", fmt.Sprintf(
 		"https://www.wikidata.org/wiki/Special:EntityData/%s.json",
-		url.PathEscape(wikidataId)))
+		url.PathEscape(wikidataId)), nil)
+	if err != nil {
+		return "", err
+	}
+	// Wikimedia rejects requests without an identifying user agent.
+	req.Header.Add("User-Agent", "watcharr-fork/1.0 (https://github.com/be-nj/Watcharr)")
+	res, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return "", err
 	}
