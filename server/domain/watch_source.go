@@ -50,4 +50,27 @@ type (
 		TmdbID     int    `json:"tmdbId"`
 		PosterPath string `json:"poster_path"`
 	}
+
+	// One year of personal cinema visits (for the stats page).
+	CinemaStatsYear struct {
+		Year            string   `json:"year"`
+		Visits          int64    `json:"visits"`
+		RatingSnacksAvg *float64 `json:"ratingSnacksAvg"`
+	}
+
+	// One cinema in the personal visit ranking (for the stats page).
+	CinemaStatsRankingEntry struct {
+		ID               uint     `json:"id"`
+		Name             string   `json:"name"`
+		City             string   `json:"city,omitempty"`
+		Visits           int64    `json:"visits"`
+		RatingOverallAvg *float64 `json:"ratingOverallAvg"`
+	}
+
+	CinemaStatsResponse struct {
+		TotalVisits     int64                     `json:"totalVisits"`
+		DistinctCinemas int                       `json:"distinctCinemas"`
+		Years           []CinemaStatsYear         `json:"years"`
+		Ranking         []CinemaStatsRankingEntry `json:"ranking"`
+	}
 )

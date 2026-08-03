@@ -41,6 +41,21 @@ func (r *Router) AddRoutes() {
 	// `:id` param routes above.
 	geocode := r.br.Router.Group("/geocode").Use(authmiddleware.AuthRequired(nil, r.br.Cfg))
 	geocode.GET("", r.Geocode)
+
+	// Own group for the same reason.
+	stats := r.br.Router.Group("/stats").Use(authmiddleware.AuthRequired(nil, r.br.Cfg))
+	stats.GET("cinema", r.GetCinemaStats)
+}
+
+// Get our personal cinema visit stats.
+func (r *Router) GetCinemaStats(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	stats, err := r.service.GetCinemaStats(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
 }
 
 // Get one of our watch sources.

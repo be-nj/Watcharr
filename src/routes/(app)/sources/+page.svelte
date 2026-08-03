@@ -60,6 +60,9 @@
 				<a href={resolve("/sources/map")}>
 					<button>Cinema Map</button>
 				</a>
+				<a href={resolve("/sources/stats")}>
+					<button>Cinema Stats</button>
+				</a>
 			</div>
 		</div>
 		{#await getSourcesPromise}

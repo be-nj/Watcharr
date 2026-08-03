@@ -258,23 +258,50 @@
 			{#if selectedSource?.cinema}
 				<h3>Rate This Visit</h3>
 				<div class="visit-rating">
+					<!-- The `current` spans show the value that will actually be
+					     saved (the Rating components own display can lag behind
+					     while hovering/keyboard-selecting). -->
 					<div class="rating-row">
-						<span>Overall{ratingSnacks !== undefined || ratingTech !== undefined || ratingComfort !== undefined ? " (required)" : ""}</span>
+						<span>
+							Overall{ratingSnacks !== undefined ||
+							ratingTech !== undefined ||
+							ratingComfort !== undefined
+								? " (required)"
+								: ""}
+							{#if ratingOverall !== undefined}
+								<span class="current">{ratingOverall}/10</span>
+							{/if}
+						</span>
 						<Rating
 							rating={ratingOverall}
 							onChange={(r) => (ratingOverall = r)}
 						/>
 					</div>
 					<div class="rating-row">
-						<span>Popcorn & Snacks</span>
+						<span>
+							Popcorn & Snacks
+							{#if ratingSnacks !== undefined}
+								<span class="current">{ratingSnacks}/10</span>
+							{/if}
+						</span>
 						<Rating rating={ratingSnacks} onChange={(r) => (ratingSnacks = r)} />
 					</div>
 					<div class="rating-row">
-						<span>Picture & Sound</span>
+						<span>
+							Picture & Sound
+							{#if ratingTech !== undefined}
+								<span class="current">{ratingTech}/10</span>
+							{/if}
+						</span>
 						<Rating rating={ratingTech} onChange={(r) => (ratingTech = r)} />
 					</div>
 					<div class="rating-row">
-						<span>Comfort</span>
+						<span>
+							Comfort
+							{#if ratingComfort !== undefined}
+								<span class="current">{ratingComfort}/10</span>
+							{/if}
+						</span>
 						<Rating
 							rating={ratingComfort}
 							onChange={(r) => (ratingComfort = r)}
@@ -339,6 +366,10 @@
 
 				span {
 					font-size: 13px;
+				}
+
+				.current {
+					font-weight: bold;
 				}
 			}
 

@@ -243,6 +243,29 @@ export interface WatchSourceWatch {
 	poster_path: string;
 }
 
+// One year of personal cinema visits (for the stats page).
+export interface CinemaStatsYear {
+	year: string;
+	visits: number;
+	ratingSnacksAvg?: number;
+}
+
+// One cinema in the personal visit ranking (for the stats page).
+export interface CinemaStatsRankingEntry {
+	id: number;
+	name: string;
+	city?: string;
+	visits: number;
+	ratingOverallAvg?: number;
+}
+
+export interface CinemaStatsResponse {
+	totalVisits: number;
+	distinctCinemas: number;
+	years: CinemaStatsYear[];
+	ranking: CinemaStatsRankingEntry[];
+}
+
 export interface WatchedSeason {
 	id: number;
 	watchedID: number;
