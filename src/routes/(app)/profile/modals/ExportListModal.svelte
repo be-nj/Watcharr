@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Modal from "@/lib/Modal.svelte";
-	import { req } from "@/lib/util/api";
+	import { baseURL, req } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
 
 	interface Props {
@@ -38,6 +38,29 @@
 			notify({ id: nid, text: "Export Failed!", type: "error" });
 		}
 	}
+
+	// Server side letterboxd compatible csv (one row per play, incl
+	// tmdbID for exact matching over there).
+	async function downloadLetterboxdCsv() {
+		const nid = notify({ text: "Exporting", type: "loading" });
+		try {
+			const resp = await fetch(`${baseURL}/export/letterboxd`, {
+				headers: { Authorization: localStorage.getItem("token") ?? "" },
+			});
+			if (!resp.ok) {
+				throw new Error(`status ${resp.status}`);
+			}
+			const a = document.createElement("a");
+			a.href = URL.createObjectURL(await resp.blob());
+			a.download = "watcharr-letterboxd.csv";
+			a.click();
+			notify({ id: nid, text: "Successfully Exported", type: "success" });
+			onClose();
+		} catch (err) {
+			console.error("downloadLetterboxdCsv failed!", err);
+			notify({ id: nid, text: "Export Failed!", type: "error" });
+		}
+	}
 </script>
 
 <Modal title="Export Watched List" maxWidth="600px" {onClose}>
@@ -57,10 +80,20 @@
 			>https://watcharr.app/docs/server_config/backup</a
 		>).
 	</p>
-	<button onclick={() => downloadWatchedList()}>Export</button>
+	<div class="btns">
+		<button onclick={() => downloadWatchedList()}>Export</button>
+		<button onclick={() => downloadLetterboxdCsv()}>
+			Letterboxd CSV (movies)
+		</button>
+	</div>
 </Modal>
 
 <style lang="scss">
+	.btns {
+		display: flex;
+		gap: 8px;
+	}
+
 	p {
 		margin-bottom: 10px;
 

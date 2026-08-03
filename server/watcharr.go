@@ -30,6 +30,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/auth"
 	"github.com/sbondCo/Watcharr/feature/content"
 	"github.com/sbondCo/Watcharr/feature/discover"
+	"github.com/sbondCo/Watcharr/feature/export"
 	"github.com/sbondCo/Watcharr/feature/feature"
 	"github.com/sbondCo/Watcharr/feature/follow"
 	"github.com/sbondCo/Watcharr/feature/game"
@@ -241,6 +242,7 @@ func main() {
 	followService := follow.NewService(db)
 	tagService := tag.NewService(db, watchedService)
 	sourceService := source.NewService(db)
+	exportService := export.NewService(db)
 	searchService := search.NewService(db, br.Cfg, tmdbService, watchedService)
 	discoverService := discover.NewService(db, br.Cfg, tmdbService)
 	importService := imprt.NewService(
@@ -266,6 +268,7 @@ func main() {
 	user.NewRouter(br, userService, userManageService).AddRoutes()
 	follow.NewRouter(br, followService).AddRoutes()
 	source.NewRouter(br, sourceService).AddRoutes()
+	export.NewRouter(br, exportService).AddRoutes()
 	imprt.NewRouter(br, importService, importTraktService).AddRoutes()
 	server.NewRouter(br, plexService, authTrustedHeaderService, userManageService).AddRoutes()
 	feature.NewRouter(br, featureService).AddRoutes()
