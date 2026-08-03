@@ -19,6 +19,18 @@ type (
 		CustomDate time.Time `json:"customDate" binding:"required"`
 	}
 
+	// Log one of our plays for friends that watched together with us.
+	CompanionLogRequest struct {
+		UserIDs []uint `json:"userIds" binding:"required"`
+	}
+
+	CompanionLogResult struct {
+		UserID   uint   `json:"userId"`
+		Username string `json:"username,omitempty"`
+		Ok       bool   `json:"ok"`
+		Error    string `json:"error,omitempty"`
+	}
+
 	ActivityDetailsUpdateRequest struct {
 		WatchSourceID  *uint  `json:"watchSourceId"`
 		CinemaScreenID *uint  `json:"cinemaScreenId"`

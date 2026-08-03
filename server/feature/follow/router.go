@@ -34,6 +34,19 @@ func (r *Router) AddRoutes() {
 	// Get follows thoughts on content
 	// TODO Rename `tmdbId` to `mediaId` to match what it is actually used as (since it works for games).
 	f.GET("/thoughts/:type/:tmdbId", r.GetFollowsThoughts)
+	// Get users that follow us back ("friends")
+	f.GET("/mutual", r.GetMutuals)
+}
+
+// Get users that follow us back (used for "watched together with").
+func (r *Router) GetMutuals(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	response, err := r.service.GetMutuals(userId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 // Get users follows // TODO extend to support optionally passing user id as route param, default to current user

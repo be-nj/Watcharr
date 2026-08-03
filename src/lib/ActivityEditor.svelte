@@ -8,6 +8,8 @@
 		Activity,
 		ActivityDetails,
 		ActivityDetailsUpdateRequest,
+		CompanionLogResult,
+		PublicUser,
 		WatchSource,
 	} from "@/types";
 	import { onMount } from "svelte";
@@ -88,10 +90,53 @@
 			if (!(await saveDetails())) {
 				return;
 			}
+			if (!(await logCompanions())) {
+				return;
+			}
 			onUpdated(activity.id, activity);
 			onClose();
 		} finally {
 			saving = false;
+		}
+	}
+
+	// Log this play for the selected friends (mutual follows).
+	async function logCompanions(): Promise<boolean> {
+		if (selectedFriendIds.length === 0) {
+			return true;
+		}
+		try {
+			const results = await req.post<CompanionLogResult[]>(
+				`/activity/${activity.id}/companions`,
+				{ userIds: selectedFriendIds },
+			);
+			const failed = results.filter((r) => !r.ok);
+			if (failed.length > 0) {
+				notify({
+					text: `Failed logging for: ${failed
+						.map((f) => `${f.username || f.userId} (${f.error})`)
+						.join(", ")}`,
+					type: "error",
+					time: 5000,
+				});
+				// Keep only failed ones selected so a retry is possible.
+				selectedFriendIds = failed.map((f) => f.userId);
+				return false;
+			}
+			selectedFriendIds = [];
+			return true;
+		} catch (err) {
+			console.error("ActivityEditor: Failed logging for friends!", err);
+			notify({ text: "Failed logging for friends!", type: "error", time: 2500 });
+			return false;
+		}
+	}
+
+	function toggleFriend(id: number) {
+		if (selectedFriendIds.includes(id)) {
+			selectedFriendIds = selectedFriendIds.filter((f) => f !== id);
+		} else {
+			selectedFriendIds = [...selectedFriendIds, id];
 		}
 	}
 
@@ -125,6 +170,9 @@
 		activity.details?.ratingComfort,
 	);
 	let ratingShowName = $state(activity.details?.ratingShowName ?? false);
+	// Friends (mutual follows) this play can additionally be logged for.
+	let friends = $state<PublicUser[]>([]);
+	let selectedFriendIds = $state<number[]>([]);
 
 	let selectedSource = $derived(
 		sources.find((s) => s.id === Number(selectedSourceId)),
@@ -143,6 +191,14 @@
 			sources = await req.get<WatchSource[]>("/source");
 		} catch (err) {
 			console.error("ActivityEditor: Failed getting sources!", err);
+		}
+		try {
+			// Only plays can be logged for friends.
+			if (activity.countAsPlay) {
+				friends = await req.get<PublicUser[]>("/follow/mutual");
+			}
+		} catch (err) {
+			console.error("ActivityEditor: Failed getting mutual follows!", err);
 		}
 		// The watched list endpoints don't include activity details, so
 		// fetch them fresh from the activity endpoint (which does).
@@ -316,6 +372,27 @@
 					</div>
 				</div>
 			{/if}
+			{#if activity.countAsPlay && friends.length > 0}
+				<h3>Watched With</h3>
+				<span class="friends-hint">
+					Logs this play for the selected friends too (marked as logged by
+					you, they can remove it anytime). Cinema, screen and languages are
+					copied over - ratings and notes are not.
+				</span>
+				<div class="friends">
+					{#each friends as f (f.id)}
+						<div class="friend">
+							<Checkbox
+								name={`friend-${f.id}`}
+								value={selectedFriendIds.includes(f.id)}
+								toggled={() => toggleFriend(f.id)}
+							/>
+							<span>{f.username}</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
 			<h3>Language</h3>
 			<div class="langs">
 				<input
@@ -374,6 +451,24 @@
 			}
 
 			.show-name {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 13px;
+			}
+		}
+
+		.friends-hint {
+			font-size: 12px;
+			opacity: 0.7;
+		}
+
+		.friends {
+			display: flex;
+			flex-flow: column;
+			gap: 6px;
+
+			.friend {
 				display: flex;
 				align-items: center;
 				gap: 8px;

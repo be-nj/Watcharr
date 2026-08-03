@@ -53,6 +53,10 @@
 				return "Thoughts Changed";
 			case "THOUGHTS_REMOVED":
 				return "Thoughts Removed";
+			case "FRIEND_LOGGED_WATCH": {
+				const data = getActivityDataParsed(a);
+				return `Watched together (logged by ${data?.loggedBy ?? "a friend"})`;
+			}
 			case "IMPORTED_WATCHED":
 				return "Imported";
 			case "IMPORTED_WATCHED_JF":

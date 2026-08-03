@@ -157,3 +157,23 @@ func (s *Service) GetFollowsThoughts(userId uint, mediaType string, mediaId stri
 	}
 	return ft, nil
 }
+
+// Users that follow us back - our "friends" (used to pick who a watch
+// can be logged for).
+func (s *Service) GetMutuals(userId uint) ([]entity.PublicUser, error) {
+	var users []entity.User
+	res := s.db.
+		Joins("JOIN follows f1 ON f1.followed_user_id = users.id AND f1.user_id = ?", userId).
+		Joins("JOIN follows f2 ON f2.user_id = users.id AND f2.followed_user_id = ?", userId).
+		Preload("Avatar").
+		Find(&users)
+	if res.Error != nil {
+		slog.Error("getMutuals: Error finding mutual follows.", "error", res.Error)
+		return []entity.PublicUser{}, errors.New("failed to find mutual follows")
+	}
+	mutuals := []entity.PublicUser{}
+	for _, u := range users {
+		mutuals = append(mutuals, u.GetSafe())
+	}
+	return mutuals, nil
+}

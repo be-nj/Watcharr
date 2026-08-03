@@ -38,6 +38,9 @@ var (
 	EPISODE_REMOVED             ActivityType = "EPISODE_REMOVED"
 	EPISODE_RATING_CHANGED      ActivityType = "EPISODE_RATING_CHANGED"
 	EPISODE_STATUS_CHANGED      ActivityType = "EPISODE_STATUS_CHANGED"
+	// A friend logged this play on the users behalf ("watched together
+	// with"). Data carries {"loggedBy": "<username>"}.
+	FRIEND_LOGGED_WATCH ActivityType = "FRIEND_LOGGED_WATCH"
 )
 
 type Activity struct {

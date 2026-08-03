@@ -29,7 +29,29 @@ func (r *Router) AddRoutes() {
 	activity.GET(":watchedId", r.GetActivity)
 	activity.PUT(":id", r.UpdateActivity)
 	activity.PUT(":id/details", r.UpdateActivityDetails)
+	activity.POST(":id/companions", r.LogCompanions)
 	activity.DELETE(":id", r.DeleteActivity)
+}
+
+// Log one of our plays for friends that watched together with us.
+func (r *Router) LogCompanions(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "check id route param"})
+		return
+	}
+	var cr domain.CompanionLogRequest
+	if err := c.ShouldBindJSON(&cr); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	results, err := r.service.LogCompanions(userId, uint(id), cr.UserIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, results)
 }
 
 // Set/replace details (watch source, language, tags, note) on one of our activities.

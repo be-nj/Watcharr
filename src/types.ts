@@ -268,6 +268,14 @@ export interface CinemaStatsResponse {
 	ranking: CinemaStatsRankingEntry[];
 }
 
+// Result of logging a play for a friend ("watched together with").
+export interface CompanionLogResult {
+	userId: number;
+	username?: string;
+	ok: boolean;
+	error?: string;
+}
+
 export interface WatchedSeason {
 	id: number;
 	watchedID: number;
