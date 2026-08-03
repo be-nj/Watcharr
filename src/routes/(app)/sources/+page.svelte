@@ -55,7 +55,12 @@
 				Where/how you watch things. Add your cinemas and services here, then
 				attach them to your watches from the activity list.
 			</p>
-			<button onclick={() => (createModalOpen = true)}>Add Source</button>
+			<div class="header-btns">
+				<button onclick={() => (createModalOpen = true)}>Add Source</button>
+				<a href={resolve("/sources/map")}>
+					<button>Cinema Map</button>
+				</a>
+			</div>
 		</div>
 		{#await getSourcesPromise}
 			<Spinner />
@@ -119,6 +124,11 @@
 
 		button {
 			width: max-content;
+		}
+
+		.header-btns {
+			display: flex;
+			gap: 8px;
 		}
 	}
 

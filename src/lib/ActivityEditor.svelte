@@ -10,6 +10,7 @@
 		WatchSource,
 	} from "@/types";
 	import { store } from "@/store.svelte";
+	import { onMount } from "svelte";
 	import { notify } from "./util/notify";
 
 	interface Props {
@@ -67,25 +68,30 @@
 		}
 	}
 
-	async function update() {
-		const dateObj = validateNewDate();
-		if (dateObj && isDateTimeValid && isDateTimeChanged) {
-			const updatedActivity = await updateActivity(activity, dateObj);
-			if (!updatedActivity) {
-				// Failed..
+	// Saves date (when changed) and watch details together.
+	async function save() {
+		saving = true;
+		try {
+			if (isDateTimeChanged) {
+				const dateObj = validateNewDate();
+				if (!dateObj || !isDateTimeValid) {
+					notify({ text: "Invalid date/time!", type: "error" });
+					return;
+				}
+				const updatedActivity = await updateActivity(activity, dateObj);
+				if (!updatedActivity) {
+					return;
+				}
+				activity.customDate = updatedActivity.customDate;
+			}
+			if (!(await saveDetails())) {
 				return;
 			}
-			onUpdated(updatedActivity.id, updatedActivity);
+			onUpdated(activity.id, activity);
 			onClose();
-			return;
+		} finally {
+			saving = false;
 		}
-		notify({ text: "Unable to try updating!", type: "error" });
-		console.error(
-			"ActivityEditor: Can't try updating, data missing/invalid:",
-			dateObj,
-			isDateTimeValid,
-			isDateTimeChanged,
-		);
 	}
 
 	async function remove() {
@@ -98,8 +104,8 @@
 	}
 
 	// Per watch details (source, language, tags, note).
-	let showDetails = $state(false);
 	let sources = $state<WatchSource[]>([]);
+	let saving = $state(false);
 	let selectedSourceId: string | number | undefined = $state(
 		activity.details?.watchSourceId,
 	);
@@ -112,7 +118,6 @@
 	let selectedTagIds = $state<number[]>(
 		activity.details?.tags?.map((t) => t.id) ?? [],
 	);
-	let detailsSaving = $state(false);
 
 	let selectedSource = $derived(
 		sources.find((s) => s.id === Number(selectedSourceId)),
@@ -128,16 +133,13 @@
 	);
 	let allTags = $derived(store.tags);
 
-	async function toggleDetails() {
-		showDetails = !showDetails;
-		if (showDetails && sources.length === 0) {
-			try {
-				sources = await req.get<WatchSource[]>("/source");
-			} catch (err) {
-				console.error("ActivityEditor: Failed getting sources!", err);
-			}
+	onMount(async () => {
+		try {
+			sources = await req.get<WatchSource[]>("/source");
+		} catch (err) {
+			console.error("ActivityEditor: Failed getting sources!", err);
 		}
-	}
+	});
 
 	function toggleTag(tag: Tag) {
 		if (selectedTagIds.includes(tag.id)) {
@@ -147,9 +149,7 @@
 		}
 	}
 
-	async function saveDetails() {
-		detailsSaving = true;
-		const nid = notify({ text: "Saving Details", type: "loading" });
+	async function saveDetails(): Promise<boolean> {
 		try {
 			const resp = await req.put<ActivityDetails>(
 				`/activity/${activity.id}/details`,
@@ -168,17 +168,16 @@
 				} as ActivityDetailsUpdateRequest,
 			);
 			activity.details = resp;
-			notify({ id: nid, text: "Details Saved!", type: "success" });
-			onUpdated(activity.id, activity);
+			return true;
 		} catch (err) {
 			console.error("ActivityEditor: Failed saving details!", err);
-			notify({ id: nid, text: "Failed!", type: "error", time: 1 });
+			notify({ text: "Failed saving details!", type: "error", time: 2 });
+			return false;
 		}
-		detailsSaving = false;
 	}
 </script>
 
-<Modal title="Edit Activity" desc={activityMessage} maxWidth="400px" {onClose}>
+<Modal title="Edit Activity" desc={activityMessage} maxWidth="520px" {onClose}>
 	<div class="centered">
 		<h3>Date</h3>
 		<input
@@ -196,11 +195,7 @@
 			onchange={validateNewDate}
 		/>
 
-		<button class="plain toggle-details" onclick={toggleDetails}>
-			{showDetails ? "Hide" : "Show"} watch details
-		</button>
-		{#if showDetails}
-			<h3>Watched Via</h3>
+		<h3>Watched Via</h3>
 			<DropDown
 				options={sourceOptions}
 				isDropDownItem={true}
@@ -246,28 +241,17 @@
 					{/each}
 				</div>
 			{/if}
-			<h3>Note</h3>
-			<textarea
-				placeholder="Anything to remember about this watch"
-				rows="2"
-				bind:value={detailsNote}
-			></textarea>
-			<button
-				class="save-details"
-				onclick={saveDetails}
-				disabled={detailsSaving}
-			>
-				Save Details
-			</button>
-		{/if}
+		<h3>Note</h3>
+		<textarea
+			placeholder="Anything to remember about this watch"
+			rows="2"
+			bind:value={detailsNote}
+		></textarea>
 
 		<div class="button-row">
 			<button class="danger" onclick={remove}>Delete</button>
 			<div>
-				<button
-					onclick={update}
-					disabled={!(isDateTimeChanged && isDateTimeValid)}>Update</button
-				>
+				<button onclick={save} disabled={saving}>Save</button>
 			</div>
 		</div>
 	</div>
@@ -279,11 +263,6 @@
 		flex-flow: column;
 		gap: 10px;
 		height: 100%;
-
-		.toggle-details {
-			width: max-content;
-			font-size: 13px;
-		}
 
 		.langs {
 			display: flex;
@@ -312,10 +291,6 @@
 			}
 		}
 
-		.save-details {
-			width: max-content;
-			margin-left: auto;
-		}
 
 		h3 {
 			font-size: 16px;
