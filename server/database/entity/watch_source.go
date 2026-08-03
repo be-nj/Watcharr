@@ -33,7 +33,7 @@ func (t WatchSourceType) IsValid() bool {
 type WatchSource struct {
 	dbmodel.GormModel
 	// ID of user that created this source.
-	CreatedBy uint `json:"createdBy" gorm:"not null"`
+	CreatedBy uint `json:"createdBy" gorm:"not null;default:0"`
 	// Display name of the source (eg `CineStar Metropolis` or `Disney+`).
 	Name string          `json:"name" gorm:"not null"`
 	Type WatchSourceType `json:"type" gorm:"not null"`
