@@ -29,7 +29,6 @@ func (s *Service) GetActivity(
 		Preload("Details").
 		Preload("Details.WatchSource").
 		Preload("Details.CinemaScreen").
-		Preload("Details.Tags").
 		Find(&activity)
 	if res.Error != nil {
 		slog.Error("Failed getting activity from database",

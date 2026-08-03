@@ -100,32 +100,25 @@ func (s *Service) applyImportWatches(
 		plays = []entity.Activity{}
 	}
 	for _, watch := range watches {
-		target := findPlayOnDay(plays, watch.Date)
-		if target == nil {
-			customDate := watch.Date
-			added, err := s.activityProvider.AddActivity(
-				userId,
-				domain.ActivityAddProps{
-					WatchedID:  watchedId,
-					Type:       entity.IMPORTED_ADDED_WATCHED,
-					CustomDate: &customDate,
-				},
-				true,
-			)
-			if err != nil {
-				slog.Error("applyImportWatches: Failed to add play activity.",
-					"date", watch.Date, "error", err)
-				continue
-			}
-			target = &added
-			plays = append(plays, added)
+		if findPlayOnDay(plays, watch.Date) != nil {
+			continue
 		}
-		if len(watch.Tags) > 0 {
-			if err := s.attachWatchTags(userId, target.ID, watch.Tags); err != nil {
-				slog.Error("applyImportWatches: Failed to attach watch tags.",
-					"activity_id", target.ID, "error", err)
-			}
+		customDate := watch.Date
+		added, err := s.activityProvider.AddActivity(
+			userId,
+			domain.ActivityAddProps{
+				WatchedID:  watchedId,
+				Type:       entity.IMPORTED_ADDED_WATCHED,
+				CustomDate: &customDate,
+			},
+			true,
+		)
+		if err != nil {
+			slog.Error("applyImportWatches: Failed to add play activity.",
+				"date", watch.Date, "error", err)
+			continue
 		}
+		plays = append(plays, added)
 	}
 	return nil
 }
@@ -142,50 +135,6 @@ func findPlayOnDay(plays []entity.Activity, date time.Time) *entity.Activity {
 		if y1 == y2 && m1 == m2 && d1 == d2 {
 			return &plays[i]
 		}
-	}
-	return nil
-}
-
-// Attach tags (by name, created if missing) to a single watch via its
-// activity details row.
-func (s *Service) attachWatchTags(
-	userId uint,
-	activityId uint,
-	tagNames []string,
-) error {
-	tags := []entity.Tag{}
-	for _, name := range tagNames {
-		if name == "" {
-			continue
-		}
-		t, err := s.tagProvider.GetTagByNameAndColor(userId, name, "", "")
-		if err != nil && err.Error() != "tag does not exist" {
-			return err
-		}
-		if t.ID == 0 {
-			t, err = s.tagProvider.AddTag(userId, domain.TagAddRequest{Name: name})
-			if err != nil {
-				return err
-			}
-		}
-		tags = append(tags, t)
-	}
-	if len(tags) == 0 {
-		return nil
-	}
-	details := new(entity.ActivityDetails)
-	res := s.db.Where("activity_id = ?", activityId).Find(&details)
-	if res.Error != nil {
-		return errors.New("failed getting activity details")
-	}
-	details.ActivityID = activityId
-	res = s.db.Save(&details)
-	if res.Error != nil {
-		return errors.New("failed saving activity details")
-	}
-	err := s.db.Model(&details).Association("Tags").Append(tags)
-	if err != nil {
-		return errors.New("failed saving activity details tags")
 	}
 	return nil
 }

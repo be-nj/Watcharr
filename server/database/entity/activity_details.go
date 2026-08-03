@@ -21,6 +21,4 @@ type ActivityDetails struct {
 	SubtitleLang string `json:"subtitleLang"`
 	// Free text note for this watch.
 	Note string `json:"note"`
-	// Tags for this watch (separate from tags on the watched item itself).
-	Tags []Tag `json:"tags" gorm:"many2many:activity_details_tags;"`
 }

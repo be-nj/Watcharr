@@ -68,22 +68,6 @@ func (s *Service) UpdateActivityDetails(
 	} else if dr.CinemaScreenID != nil {
 		return entity.ActivityDetails{}, errors.New("screen cannot be set without a source")
 	}
-	// Verify the referenced tags belong to the user.
-	tags := []entity.Tag{}
-	if len(dr.TagIds) > 0 {
-		res = s.db.
-			Model(&entity.Tag{}).
-			Where("id IN ? AND user_id = ?", dr.TagIds, userId).
-			Find(&tags)
-		if res.Error != nil {
-			slog.Error("UpdateActivityDetails: Failed getting tags from database",
-				"error", res.Error.Error())
-			return entity.ActivityDetails{}, errors.New("failed getting tags")
-		}
-		if len(tags) != len(dr.TagIds) {
-			return entity.ActivityDetails{}, errors.New("tag does not exist")
-		}
-	}
 	// Get or create the details row.
 	details := new(entity.ActivityDetails)
 	res = s.db.Where("activity_id = ?", activity.ID).Find(&details)
@@ -104,14 +88,6 @@ func (s *Service) UpdateActivityDetails(
 			"error", res.Error.Error())
 		return entity.ActivityDetails{}, errors.New("failed saving activity details to database")
 	}
-	// Replace tags (association must be updated separately).
-	err := s.db.Model(&details).Association("Tags").Replace(tags)
-	if err != nil {
-		slog.Error("UpdateActivityDetails: Error replacing details tags",
-			"error", err.Error())
-		return entity.ActivityDetails{}, errors.New("failed saving activity details tags")
-	}
-	details.Tags = tags
 	slog.Debug("UpdateActivityDetails: Updated details", "details", details)
 	return *details, nil
 }

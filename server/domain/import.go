@@ -69,10 +69,9 @@ type ImportRequest struct {
 	Watches []ImportWatch `json:"watches"`
 }
 
-// A single watch with its own metadata (eg a letterboxd diary entry).
+// A single watch with its own date (eg a letterboxd diary entry).
 type ImportWatch struct {
 	Date time.Time `json:"date"`
-	Tags []string  `json:"tags"`
 }
 
 // Internal struct given to the SuccessfulImport function.

@@ -348,11 +348,6 @@
 					if (d["Watched Date"]) {
 						t.watches?.push({
 							date: new Date(d["Watched Date"]).toISOString(),
-							tags: d.Tags
-								? d.Tags.split(",")
-										.map((tag) => tag.trim().toLowerCase())
-										.filter((tag) => tag !== "")
-								: [],
 						});
 					}
 					if (d.Rating && !t.rating) {

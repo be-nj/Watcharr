@@ -6,11 +6,10 @@
 		Activity,
 		ActivityDetails,
 		ActivityDetailsUpdateRequest,
-		Tag,
 		WatchSource,
 	} from "@/types";
-	import { store } from "@/store.svelte";
 	import { onMount } from "svelte";
+	import { resolve } from "$app/paths";
 	import { notify } from "./util/notify";
 
 	interface Props {
@@ -103,7 +102,7 @@
 		onClose();
 	}
 
-	// Per watch details (source, language, tags, note).
+	// Per watch details (source, language, note).
 	let sources = $state<WatchSource[]>([]);
 	let saving = $state(false);
 	let selectedSourceId: string | number | undefined = $state(
@@ -115,9 +114,6 @@
 	let audioLang = $state(activity.details?.audioLang ?? "");
 	let subtitleLang = $state(activity.details?.subtitleLang ?? "");
 	let detailsNote = $state(activity.details?.note ?? "");
-	let selectedTagIds = $state<number[]>(
-		activity.details?.tags?.map((t) => t.id) ?? [],
-	);
 
 	let selectedSource = $derived(
 		sources.find((s) => s.id === Number(selectedSourceId)),
@@ -131,8 +127,6 @@
 	let sourceOptions = $derived(
 		sources.map((s) => ({ id: s.id, value: s.name })),
 	);
-	let allTags = $derived(store.tags);
-
 	onMount(async () => {
 		try {
 			sources = await req.get<WatchSource[]>("/source");
@@ -140,14 +134,6 @@
 			console.error("ActivityEditor: Failed getting sources!", err);
 		}
 	});
-
-	function toggleTag(tag: Tag) {
-		if (selectedTagIds.includes(tag.id)) {
-			selectedTagIds = selectedTagIds.filter((id) => id !== tag.id);
-		} else {
-			selectedTagIds = [...selectedTagIds, tag.id];
-		}
-	}
 
 	async function saveDetails(): Promise<boolean> {
 		try {
@@ -164,7 +150,6 @@
 					audioLang,
 					subtitleLang,
 					note: detailsNote,
-					tagIds: selectedTagIds,
 				} as ActivityDetailsUpdateRequest,
 			);
 			activity.details = resp;
@@ -202,7 +187,15 @@
 				bind:active={selectedSourceId}
 				placeholder="Source"
 			/>
-			{#if selectedSource?.cinema && screenOptions.length > 0}
+			{#if selectedSource?.cinema}
+			<a class="cinema-link" href={resolve(`/sources/${selectedSource.id}`)}>
+				View & rate {selectedSource.name}
+				{selectedSource.cinema.ratingOverall
+					? `(currently ${selectedSource.cinema.ratingOverall}/10)`
+					: ""} →
+			</a>
+		{/if}
+		{#if selectedSource?.cinema && screenOptions.length > 0}
 				<h3>Screen</h3>
 				<DropDown
 					options={screenOptions}
@@ -226,22 +219,7 @@
 					bind:value={subtitleLang}
 				/>
 			</div>
-			{#if allTags?.length > 0}
-				<h3>Tags</h3>
-				<div class="tags">
-					{#each allTags as tag (tag.id)}
-						<button
-							class="plain tag"
-							class:selected={selectedTagIds.includes(tag.id)}
-							style="color: {tag.color}; background-color: {tag.bgColor};"
-							onclick={() => toggleTag(tag)}
-						>
-							{tag.name}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		<h3>Note</h3>
+			<h3>Note</h3>
 		<textarea
 			placeholder="Anything to remember about this watch"
 			rows="2"
@@ -264,6 +242,11 @@
 		gap: 10px;
 		height: 100%;
 
+		.cinema-link {
+			font-size: 13px;
+			width: max-content;
+		}
+
 		.langs {
 			display: flex;
 			gap: 8px;
@@ -273,23 +256,6 @@
 			}
 		}
 
-		.tags {
-			display: flex;
-			flex-flow: wrap;
-			gap: 6px;
-
-			.tag {
-				width: max-content;
-				padding: 2px 10px;
-				border-radius: 10px;
-				font-size: 13px;
-				opacity: 0.5;
-
-				&.selected {
-					opacity: 1;
-				}
-			}
-		}
 
 
 		h3 {

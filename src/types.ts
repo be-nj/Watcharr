@@ -174,7 +174,6 @@ export interface ActivityDetails {
 	audioLang: string;
 	subtitleLang: string;
 	note: string;
-	tags?: Tag[];
 }
 
 export interface ActivityDetailsUpdateRequest {
@@ -183,7 +182,6 @@ export interface ActivityDetailsUpdateRequest {
 	audioLang: string;
 	subtitleLang: string;
 	note: string;
-	tagIds: number[];
 }
 
 export interface GeocodeResult {
@@ -664,10 +662,9 @@ export interface ImportedList {
 	watches?: ImportedWatch[];
 }
 
-// A single watch with its own metadata (eg a letterboxd diary entry).
+// A single watch with its own date (eg a letterboxd diary entry).
 export interface ImportedWatch {
 	date: string;
-	tags: string[];
 }
 
 export interface Filters {
