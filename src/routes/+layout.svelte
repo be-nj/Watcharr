@@ -27,9 +27,11 @@
 </script>
 
 <svelte:head>
-	{#if pwaInfo?.webManifest?.linkTag}
-		<!-- eslint-disable-next-line -->
-		{@html pwaInfo.webManifest.linkTag}
+	{#if pwaInfo?.webManifest}
+		<!-- Absolute href: the generated link tag is relative, which
+		     resolves to eg /tv/manifest.webmanifest on sub pages and
+		     serves html instead of the manifest (upstream #823). -->
+		<link rel="manifest" href="/manifest.webmanifest" />
 	{/if}
 </svelte:head>
 
