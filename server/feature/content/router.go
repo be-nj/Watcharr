@@ -248,10 +248,21 @@ func (r *Router) GetPersonCredits(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
 		return
 	}
-	// Add content into response struct then add watched entries
+	// Add content into response struct then add watched entries.
+	// Crew credits (directing etc) follow the cast, deduplicated so a
+	// person acting in their own movie only shows it once.
 	resp := domain.PersonCreditsResponse{}
+	seen := map[int]bool{}
 	for i := range content.Cast {
 		resp.Credits = append(resp.Credits, content.Cast[i].AsMedia())
+		seen[content.Cast[i].ID] = true
+	}
+	for i := range content.Crew {
+		if seen[content.Crew[i].ID] {
+			continue
+		}
+		seen[content.Crew[i].ID] = true
+		resp.Credits = append(resp.Credits, content.Crew[i].AsMedia())
 	}
 	if err := addedtocontent.AddList(
 		r.wp,

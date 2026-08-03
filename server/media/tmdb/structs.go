@@ -705,7 +705,10 @@ func (t *PersonDetails) AsPersonDetailsResponse() domain.PersonDetailsResponse {
 type PersonCombinedCredits struct {
 	ID   int                               `json:"id"`
 	Cast []PersonCombinedCreditsCastResult `json:"cast"`
-	// crew PersonCombinedCreditsCrew
+	// Crew shares the shape of cast entries (plus job/department
+	// instead of character) - needed so directors etc show up on
+	// their person pages too.
+	Crew []PersonCombinedCreditsCastResult `json:"crew"`
 }
 
 type PersonCombinedCreditsCastResult struct {
@@ -723,14 +726,17 @@ type PersonCombinedCreditsCastResult struct {
 	VoteAverage      float64  `json:"vote_average"`
 	VoteCount        uint32   `json:"vote_count"`
 	Character        string   `json:"character"`
-	BackdropPath     string   `json:"backdrop_path"`
-	Popularity       float64  `json:"popularity"`
-	CreditID         string   `json:"credit_id"`
-	OriginalTitle    string   `json:"original_title"`
-	Video            bool     `json:"video"`
-	ReleaseDate      string   `json:"release_date"`
-	Title            string   `json:"title"`
-	Adult            bool     `json:"adult"`
+	// Only set on crew entries.
+	Job           string  `json:"job"`
+	Department    string  `json:"department"`
+	BackdropPath  string  `json:"backdrop_path"`
+	Popularity    float64 `json:"popularity"`
+	CreditID      string  `json:"credit_id"`
+	OriginalTitle string  `json:"original_title"`
+	Video         bool    `json:"video"`
+	ReleaseDate   string  `json:"release_date"`
+	Title         string  `json:"title"`
+	Adult         bool    `json:"adult"`
 }
 
 func (t *PersonCombinedCreditsCastResult) AsMedia() domain.Media {
