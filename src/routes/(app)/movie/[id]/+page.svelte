@@ -5,6 +5,7 @@
 	import { contentExistsOnJellyfin, req, updateWatched } from "@/lib/util/api";
 	import { store } from "@/store.svelte";
 	import type {
+		Activity as ActivityType,
 		Media,
 		TMDBContentCredits,
 		TMDBContentCreditsCrew,
@@ -30,6 +31,7 @@
 	import WatchedDeleteBtn from "@/lib/content/WatchedDeleteBtn.svelte";
 	import TopCrewList from "@/lib/content/TopCrewList.svelte";
 	import { activityRemovedHook } from "@/lib/activity.js";
+	import ActivityEditor from "@/lib/ActivityEditor.svelte";
 	import Genres from "@/lib/content/Genres.svelte";
 
 	let { data } = $props();
@@ -39,6 +41,7 @@
 	let arrRequestButtonComp: ArrRequestButton | undefined = $state();
 	let movie: Media | undefined = $state();
 	let pageError: unknown | undefined = $state();
+	let quickLogActivity: ActivityType | undefined = $state();
 
 	$effect(() => {
 		(async () => {
@@ -110,6 +113,29 @@
 			return false;
 		}
 	}
+
+	// Logs a play right away and opens the activity editor on it, so
+	// date, cinema, screen, languages and visit rating can be filled
+	// in one go ("just got back from the cinema" flow).
+	async function logCinemaVisit() {
+		if (!data.movieId || !movie) {
+			return;
+		}
+		try {
+			movie.watched = await updateWatched(movie.watched, {
+				contentId: data.movieId,
+				contentType: "movie",
+				status: "FINISHED",
+				letCountAsPlay: true,
+			});
+		} catch {
+			return;
+		}
+		const plays = movie.watched?.activity?.filter((a) => a.countAsPlay);
+		if (plays && plays.length > 0) {
+			quickLogActivity = plays.reduce((n, a) => (a.id > n.id ? a : n));
+		}
+	}
 </script>
 
 <svelte:head>
@@ -158,6 +184,16 @@
 
 						<div class="btns">
 							<ViewTrailerButton videos={movie.videos} />
+							<button
+								class="btn"
+								onclick={() => logCinemaVisit()}
+								use:tooltip={{
+									text: "Log a play and fill in cinema, screen, languages and visit rating in one go.",
+									pos: "bot",
+								}}
+							>
+								<Icon i="ticket" wh={14} />Log Cinema Visit
+							</button>
 							{#if jellyfinUrl}
 								<a
 									class="btn"
@@ -284,6 +320,28 @@
 				<Activity
 					activity={movie.watched.activity}
 					onRemoved={(a) => activityRemovedHook(movie?.watched, a)}
+				/>
+			{/if}
+
+			{#if quickLogActivity && movie.watched}
+				<ActivityEditor
+					activity={quickLogActivity}
+					activityMessage="Cinema Visit"
+					onClose={() => (quickLogActivity = undefined)}
+					onUpdated={(activityId, updatedActivity) => {
+						const acts = movie?.watched?.activity;
+						if (!acts) {
+							return;
+						}
+						const ai = acts.findIndex((a) => a.id === activityId);
+						if (ai > -1) {
+							acts[ai] = updatedActivity;
+						}
+					}}
+					onRemoved={(a) => {
+						activityRemovedHook(movie?.watched, a);
+						quickLogActivity = undefined;
+					}}
 				/>
 			{/if}
 		</div>

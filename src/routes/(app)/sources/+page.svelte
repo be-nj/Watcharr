@@ -78,8 +78,10 @@
 								{#if source.type === "CINEMA" && source.cinema?.city}
 									<span>{source.cinema.city}</span>
 								{/if}
-								{#if source.type === "CINEMA" && source.cinema?.ratingOverall}
-									<span>{source.cinema.ratingOverall}/10</span>
+								{#if source.ratingAverage}
+									<span>
+										{source.ratingAverage.toFixed(1)}/10 ({source.ratingCount})
+									</span>
 								{/if}
 							</span>
 						</a>
