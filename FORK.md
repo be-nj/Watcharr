@@ -15,15 +15,16 @@ for AI disclosure in PRs), this fork discloses AI usage as visibly as possible:
 
 ## What this fork adds
 
-Planned/in progress (see issues for details and status):
+See issues for details and status:
 
 - **Fix**: watch providers deduplication (duplicate provider names crash detail pages)
-- **Per-watch metadata**: where/how you watched (watch sources incl. cinemas with
+- **Per-watch metadata** (#1): where/how you watched (watch sources incl. cinemas with
   screens and optional ratings), audio language & subtitles, per-watch tags and notes
-- **Letterboxd import**: diary/ratings/watched CSVs with sensible merging into
-  existing data
-- **OIDC login** (upstream issue #461)
-- Maybe later: a map page for visited cinemas (Leaflet + OSM)
+- **Letterboxd import** (#2): diary/ratings/watched CSVs with per-watch tags and
+  sensible merging into existing data
+- ~~OIDC login~~ (#3): not needed — solved with upstream's trusted header auth
+  behind an Authentik proxy provider instead
+- Maybe later (#4): a map page for visited cinemas (Leaflet + OSM)
 
 Everything is built to stay close to upstream conventions so individual features could
 be offered upstream later (with AI disclosure), and to keep the fork easily rebasable.
